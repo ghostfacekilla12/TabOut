@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 
 import type { RootStackParamList } from '../navigation/AppNavigator';
-import { scanAndParseReceipt } from '../services/ocrService';
+import { analyzeReceiptWithMindee } from '../services/mindeeOCR';
 import { theme } from '../utils/theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -53,7 +53,7 @@ export default function ReceiptScannerScreen() {
       setAnalyzing(true);
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.8 });
       if (!photo) throw new Error('No photo taken');
-      const receiptData = await scanAndParseReceipt(photo.uri);
+      const receiptData = await analyzeReceiptWithMindee(photo.uri);
       setAnalyzing(false);
       navigation.navigate('NewSplit', { receiptData });
     } catch {
@@ -71,7 +71,7 @@ export default function ReceiptScannerScreen() {
     if (!result.canceled && result.assets[0]) {
       try {
         setAnalyzing(true);
-        const receiptData = await scanAndParseReceipt(result.assets[0].uri);
+        const receiptData = await analyzeReceiptWithMindee(result.assets[0].uri);
         setAnalyzing(false);
         navigation.navigate('NewSplit', { receiptData });
       } catch {

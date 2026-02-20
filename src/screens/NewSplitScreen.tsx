@@ -23,7 +23,8 @@ import { canCreateGuestSplit, saveGuestSplit } from '../services/guestStorage';
 import type { GuestSplit } from '../services/guestStorage';
 import { theme } from '../utils/theme';
 import { calculateEqualSplit, calculateSplit } from '../utils/splitCalculator';
-import { scanReceiptFromCamera, scanReceiptFromGallery, scanAndParseReceipt } from '../services/ocrService';
+import { scanReceiptFromCamera, scanReceiptFromGallery } from '../services/ocrService';
+import { analyzeReceiptWithMindee } from '../services/mindeeOCR';
 import TaxServiceToggle from '../components/TaxServiceToggle';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { Friend, Item } from '../types';
@@ -68,10 +69,22 @@ export default function NewSplitScreen({ navigation, route }: Props) {
 
   const receiptData = route.params?.receiptData;
 
+  const applyReceiptDataToForm = (data: NonNullable<typeof receiptData>) => {
+    if (data.merchantName) setDescription(data.merchantName);
+    if (data.total > 0) setTotalAmount(data.total.toFixed(2));
+    if (data.total > 0 && data.taxAmount > 0) {
+      setHasTax(true);
+      setTaxPercentage(parseFloat(((data.taxAmount / data.total) * 100).toFixed(1)));
+    }
+    if (data.total > 0 && data.serviceCharge > 0) {
+      setHasService(true);
+      setServicePercentage(parseFloat(((data.serviceCharge / data.total) * 100).toFixed(1)));
+    }
+  };
+
   useEffect(() => {
     if (receiptData) {
-      if (receiptData.merchant) setDescription(receiptData.merchant);
-      if (receiptData.total) setTotalAmount(receiptData.total.toString());
+      applyReceiptDataToForm(receiptData);
     }
   }, [receiptData]);
 
@@ -156,14 +169,14 @@ export default function NewSplitScreen({ navigation, route }: Props) {
             try {
               const imageUri = await scanReceiptFromCamera();
               if (imageUri) {
-                const receiptData = await scanAndParseReceipt(imageUri);
-                setTotalAmount(receiptData.total.toString());
-                const itemsList = receiptData.items
-                  .map((item) => `${item.name}: ${item.price} EGP`)
+                const data = await analyzeReceiptWithMindee(imageUri);
+                applyReceiptDataToForm(data);
+                const itemsList = data.items
+                  .map((item) => `${item.description}: ${item.amount}`)
                   .join('\n');
                 Alert.alert(
                   t('split.receipt_scanned'),
-                  `${t('split.total')}: ${receiptData.total} EGP\n\n${itemsList}`,
+                  `${t('split.total')}: ${data.total}\n\n${itemsList}`,
                   [{ text: t('common.ok') }]
                 );
               }
@@ -182,14 +195,14 @@ export default function NewSplitScreen({ navigation, route }: Props) {
             try {
               const imageUri = await scanReceiptFromGallery();
               if (imageUri) {
-                const receiptData = await scanAndParseReceipt(imageUri);
-                setTotalAmount(receiptData.total.toString());
-                const itemsList = receiptData.items
-                  .map((item) => `${item.name}: ${item.price} EGP`)
+                const data = await analyzeReceiptWithMindee(imageUri);
+                applyReceiptDataToForm(data);
+                const itemsList = data.items
+                  .map((item) => `${item.description}: ${item.amount}`)
                   .join('\n');
                 Alert.alert(
                   t('split.receipt_scanned'),
-                  `${t('split.total')}: ${receiptData.total} EGP\n\n${itemsList}`,
+                  `${t('split.total')}: ${data.total}\n\n${itemsList}`,
                   [{ text: t('common.ok') }]
                 );
               }

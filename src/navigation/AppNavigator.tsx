@@ -19,7 +19,7 @@ import SplitDetailScreen from '../screens/SplitDetailScreen';
 import SplitBreakdownScreen from '../screens/SplitBreakdownScreen';
 import FriendDetailScreen from '../screens/FriendDetailScreen';
 import ReceiptScannerScreen from '../screens/ReceiptScannerScreen';
-import type { ReceiptData } from '../services/ocrService';
+import type { ReceiptData } from '../services/mindeeOCR';
 
 export type AuthStackParamList = {
   Login: undefined;
