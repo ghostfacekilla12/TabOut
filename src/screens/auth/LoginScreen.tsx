@@ -21,7 +21,7 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
 export default function LoginScreen({ navigation }: Props) {
   const { t } = useTranslation();
-  const { signInWithEmail } = useAuth();
+  const { signInWithEmail, setGuestMode } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -91,6 +91,10 @@ export default function LoginScreen({ navigation }: Props) {
               <Text style={styles.linkText}>{t('auth.signup')}</Text>
             </TouchableOpacity>
           </View>
+
+          <TouchableOpacity style={styles.guestButton} onPress={() => setGuestMode(true)}>
+            <Text style={styles.guestButtonText}>{t('auth.guest_mode')}</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -171,5 +175,16 @@ const styles = StyleSheet.create({
   linkText: {
     color: theme.colors.accent,
     fontWeight: '600',
+  },
+  guestButton: {
+    marginTop: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    alignItems: 'center',
+  },
+  guestButtonText: {
+    color: theme.colors.textSecondary,
+    fontSize: 16,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
 });

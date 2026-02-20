@@ -45,7 +45,12 @@
     "invalid_email": "الإيميل مش صح",
     "invalid_phone": "رقم الموبايل مش صح",
     "password_too_short": "الباسورد لازم يكون ٦ حروف على الأقل",
-    "name_required": "الاسم مطلوب"
+    "name_required": "الاسم مطلوب",
+    "guest_mode": "كمّل كضيف",
+    "upgrade_required": "سجّل عشان تعمل أكتر",
+    "upgrade_message": "وصلت لحد ٣ حسابات. سجّل عشان تعمل حسابات كتير ويتحفظوا في الكلاود!",
+    "upgrade_benefits": "• حسابات من غير حدود\n• حفظ في الكلاود\n• استخدام من أي جهاز\n• شارك مع صحابك",
+    "guest_limit_reached": "وصلت للحد"
   },
   "home": {
     "title": "TabOut",
@@ -92,6 +97,7 @@
     "creating": "بيتعمل...",
     "split_created": "الحساب اتعمل!",
     "split_create_error": "الحساب مش اتعمل",
+    "created_locally": "الحساب اتحفظ على الموبايل",
     "no_participants": "ضيف ناس الأول",
     "description_required": "الوصف مطلوب",
     "amount_required": "المبلغ مطلوب",

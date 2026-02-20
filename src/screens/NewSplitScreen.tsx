@@ -19,6 +19,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { useAuth } from '../services/AuthContext';
 import { supabase } from '../services/supabase';
+import { canCreateGuestSplit, saveGuestSplit } from '../services/guestStorage';
+import type { GuestSplit } from '../services/guestStorage';
 import { theme } from '../utils/theme';
 import { calculateEqualSplit, calculateSplit } from '../utils/splitCalculator';
 import { scanReceiptFromCamera, scanReceiptFromGallery, scanAndParseReceipt } from '../services/ocrService';
@@ -43,7 +45,7 @@ const PRESETS = {
 
 export default function NewSplitScreen({ navigation }: Props) {
   const { t } = useTranslation();
-  const { user, profile } = useAuth();
+  const { user, profile, isGuest, setGuestMode } = useAuth();
 
   const [description, setDescription] = useState('');
   const [totalAmount, setTotalAmount] = useState('');
@@ -62,6 +64,7 @@ export default function NewSplitScreen({ navigation }: Props) {
   const [items, setItems] = useState<NewItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const loadFriends = async () => {
     if (friendsLoaded || !user) return;
@@ -125,7 +128,7 @@ export default function NewSplitScreen({ navigation }: Props) {
       Alert.alert(t('common.error'), t('split.amount_required'));
       return false;
     }
-    if (selectedFriends.length === 0) {
+    if (!isGuest && selectedFriends.length === 0) {
       Alert.alert(t('common.error'), t('split.no_participants'));
       return false;
     }
@@ -195,7 +198,37 @@ export default function NewSplitScreen({ navigation }: Props) {
   };
 
   const handleCreate = async () => {
-    if (!validate() || !user) return;
+    if (!validate()) return;
+
+    // Guest mode: check limit and save locally
+    if (isGuest) {
+      const canCreate = await canCreateGuestSplit();
+      if (!canCreate) {
+        setShowUpgradeModal(true);
+        return;
+      }
+
+      const guestSplit: GuestSplit = {
+        id: Date.now().toString(),
+        description: description.trim(),
+        total: parseFloat(totalAmount) || 0,
+        paidBy: 'You',
+        participants: selectedFriends.map((f) => f.name),
+        createdAt: new Date().toISOString(),
+      };
+
+      const saved = await saveGuestSplit(guestSplit);
+      if (!saved) {
+        setShowUpgradeModal(true);
+        return;
+      }
+
+      Alert.alert(t('common.ok'), t('split.created_locally'));
+      navigation.goBack();
+      return;
+    }
+
+    if (!user) return;
 
     setLoading(true);
     try {
@@ -509,6 +542,38 @@ export default function NewSplitScreen({ navigation }: Props) {
           </View>
         </View>
       </Modal>
+
+      <Modal
+        visible={showUpgradeModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowUpgradeModal(false)}
+      >
+        <View style={styles.upgradeModalOverlay}>
+          <View style={styles.upgradeModal}>
+            <Text style={styles.upgradeTitle}>{t('auth.guest_limit_reached')}</Text>
+            <Text style={styles.upgradeMessage}>{t('auth.upgrade_message')}</Text>
+            <Text style={styles.upgradeBenefits}>{t('auth.upgrade_benefits')}</Text>
+
+            <TouchableOpacity
+              style={styles.upgradeButton}
+              onPress={() => {
+                setShowUpgradeModal(false);
+                setGuestMode(false);
+              }}
+            >
+              <Text style={styles.upgradeButtonText}>{t('auth.signup')}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setShowUpgradeModal(false)}
+            >
+              <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -647,4 +712,56 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.md,
   },
   doneBtnText: { color: '#FFFFFF', fontWeight: '700' },
+  upgradeModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: theme.spacing.lg,
+  },
+  upgradeModal: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.xl,
+    ...theme.shadows.md,
+  },
+  upgradeTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: theme.colors.text,
+    marginBottom: theme.spacing.md,
+    textAlign: 'center',
+  },
+  upgradeMessage: {
+    fontSize: 16,
+    color: theme.colors.textSecondary,
+    marginBottom: theme.spacing.lg,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  upgradeBenefits: {
+    fontSize: 15,
+    color: theme.colors.text,
+    marginBottom: theme.spacing.xl,
+    lineHeight: 22,
+  },
+  upgradeButton: {
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  upgradeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  cancelButton: {
+    padding: theme.spacing.sm,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: theme.colors.textSecondary,
+    fontSize: 15,
+  },
 });

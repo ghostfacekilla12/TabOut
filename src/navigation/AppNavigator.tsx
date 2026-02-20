@@ -117,7 +117,7 @@ const MainNavigator = () => (
 );
 
 export const AppNavigator = () => {
-  const { session, loading } = useAuth();
+  const { session, loading, isGuest } = useAuth();
 
   if (loading) {
     return (
@@ -129,7 +129,7 @@ export const AppNavigator = () => {
 
   return (
     <NavigationContainer>
-      {session ? <MainNavigator /> : <AuthNavigator />}
+      {session || isGuest ? <MainNavigator /> : <AuthNavigator />}
     </NavigationContainer>
   );
 };
