@@ -1,6 +1,6 @@
 import { Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import TextRecognition from '@react-native-ml-kit/text-recognition';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 export interface ReceiptData {
   items: Array<{
@@ -60,8 +60,66 @@ export async function scanReceiptFromGallery(): Promise<string | null> {
 
 export async function extractTextFromImage(imageUri: string): Promise<string> {
   try {
-    const result = await TextRecognition.recognize(imageUri);
-    return result.text;
+    // Compress and resize image to reduce API costs
+    const manipResult = await ImageManipulator.manipulateAsync(
+      imageUri,
+      [{ resize: { width: 1024 } }],
+      { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+    );
+
+    if (!manipResult.base64) {
+      throw new Error('Failed to convert image to base64');
+    }
+
+    // Call Google Cloud Vision API
+    const apiKey = process.env.EXPO_PUBLIC_GOOGLE_VISION_API_KEY;
+    if (!apiKey) {
+      throw new Error('Google Vision API key not configured');
+    }
+
+    const response = await fetch(
+      `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          requests: [
+            {
+              image: {
+                content: manipResult.base64,
+              },
+              features: [
+                {
+                  type: 'TEXT_DETECTION',
+                  maxResults: 1,
+                },
+              ],
+            },
+          ],
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Vision API error: ${JSON.stringify(errorData)}`);
+    }
+
+    const result = await response.json();
+
+    if (result.responses[0].error) {
+      throw new Error(`Vision API error: ${result.responses[0].error.message}`);
+    }
+
+    const detections = result.responses[0].textAnnotations;
+    if (!detections || detections.length === 0) {
+      throw new Error('No text detected in image');
+    }
+
+    // First annotation contains all detected text
+    return detections[0].description || '';
   } catch (error) {
     console.error('OCR Error:', error);
     throw new Error(`Failed to extract text from image: ${error instanceof Error ? error.message : String(error)}`);
