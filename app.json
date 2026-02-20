@@ -54,9 +54,6 @@
         }
       ]
     ],
-    "extra": {
-      "supabaseUrl": "https://zzgrluucnjnldeqgwdtc.supabase.co",
-      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp6Z3JsdXVjbmpubGRlcWd3ZHRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2MTMxNjksImV4cCI6MjA4NzE4OTE2OX0.3vv7J78l3ygSBFuXj2YkGPNkB38M2oumm1wARgSTekY"
-    }
+    "extra": {}
   }
 }

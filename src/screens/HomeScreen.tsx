@@ -47,7 +47,7 @@ export default function HomeScreen({ navigation }: Props) {
         .select('*, splits(*)')
         .eq('user_id', user.id)
         .eq('status', 'pending')
-        .order('created_at', { ascending: false })
+        .order('split_id', { ascending: false })
         .limit(20);
 
       if (participantData) {

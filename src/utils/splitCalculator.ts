@@ -76,15 +76,17 @@ export const calculateEqualSplit = (
   participants: string[],
   options: SplitOptions
 ): SplitCalculationResult => {
+  const deliveryFee = options.hasDeliveryFee ? options.deliveryFee : 0;
+  // Subtract delivery fee before computing subtotal from percentage-based charges
+  const amountBeforeDelivery = totalAmount - deliveryFee;
   const subtotal =
-    totalAmount /
+    amountBeforeDelivery /
     (1 +
       (options.hasService ? options.servicePercentage / 100 : 0) +
       (options.hasTax ? options.taxPercentage / 100 : 0));
 
   const serviceAmount = options.hasService ? subtotal * (options.servicePercentage / 100) : 0;
   const taxAmount = options.hasTax ? subtotal * (options.taxPercentage / 100) : 0;
-  const deliveryFee = options.hasDeliveryFee ? options.deliveryFee : 0;
 
   const participantCount = participants.length;
   const perPersonSubtotal = subtotal / participantCount;

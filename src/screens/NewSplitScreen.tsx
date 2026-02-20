@@ -219,12 +219,29 @@ export default function NewSplitScreen({ navigation }: Props) {
     }
   };
 
-  const subtotal = splitType === 'equal' ? parseFloat(totalAmount) || 0 :
-    items.reduce((s, i) => s + (parseFloat(i.price) || 0), 0);
+  const itemSubtotal = items.reduce((s, i) => s + (parseFloat(i.price) || 0), 0);
+  const deliveryAmount = hasDeliveryFee ? parseFloat(deliveryFee) || 0 : 0;
+
+  // For equal split: user enters total, back-calculate subtotal for display
+  // For itemized split: subtotal is sum of items
+  let subtotal: number;
+  if (splitType === 'equal') {
+    const total = parseFloat(totalAmount) || 0;
+    const amountBeforeDelivery = total - deliveryAmount;
+    subtotal =
+      amountBeforeDelivery /
+      (1 +
+        (hasService ? servicePercentage / 100 : 0) +
+        (hasTax ? taxPercentage / 100 : 0));
+  } else {
+    subtotal = itemSubtotal;
+  }
+
   const serviceAmount = hasService ? subtotal * servicePercentage / 100 : 0;
   const taxAmount = hasTax ? subtotal * taxPercentage / 100 : 0;
-  const deliveryAmount = hasDeliveryFee ? parseFloat(deliveryFee) || 0 : 0;
-  const total = subtotal + serviceAmount + taxAmount + deliveryAmount;
+  const total = splitType === 'equal'
+    ? parseFloat(totalAmount) || 0
+    : subtotal + serviceAmount + taxAmount + deliveryAmount;
 
   return (
     <SafeAreaView style={styles.container}>

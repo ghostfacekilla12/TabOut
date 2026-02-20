@@ -83,6 +83,11 @@ export default function StatsScreen() {
 
   const maxMonthly = Math.max(...monthlyData.map((d) => d.total), 1);
 
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchStats();
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={theme.colors.accent} />
@@ -91,7 +96,7 @@ export default function StatsScreen() {
       </View>
 
       <ScrollView
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchStats(); }} tintColor={theme.colors.primary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.primary} />}
         contentContainerStyle={styles.content}
       >
         <View style={styles.row}>
