@@ -8,6 +8,7 @@ import {
   StatusBar,
   RefreshControl,
   Switch,
+  TouchableOpacity,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -16,6 +17,7 @@ import { supabase } from '../services/supabase';
 import { theme } from '../utils/theme';
 import { useTheme } from '../contexts/ThemeContext';
 import { formatCurrency } from '../utils/currencyFormatter';
+import i18n, { saveLanguage } from '../services/i18n';
 
 interface MonthlyData {
   month: string;
@@ -37,6 +39,7 @@ export default function StatsScreen() {
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [currentLanguage, setCurrentLanguage] = useState(i18n.language);
 
   const currency = (profile?.currency as 'EGP' | 'USD' | 'EUR') ?? 'EGP';
   const language = profile?.language ?? 'en';
@@ -89,6 +92,16 @@ export default function StatsScreen() {
   const onRefresh = () => {
     setRefreshing(true);
     fetchStats();
+  };
+
+  const changeLanguage = async (lang: 'en' | 'ar') => {
+    try {
+      await i18n.changeLanguage(lang);
+      await saveLanguage(lang);
+      setCurrentLanguage(lang);
+    } catch (error) {
+      console.error('Failed to change language:', error);
+    }
   };
 
   return (
@@ -158,6 +171,45 @@ export default function StatsScreen() {
               trackColor={{ false: '#D0D0D0', true: contextTheme.colors.primary }}
               thumbColor="#FFFFFF"
             />
+          </View>
+          <View style={styles.settingRow}>
+            <Text style={[styles.settingLabel, { color: contextTheme.colors.text }]}>
+              {t('settings.language')}
+            </Text>
+            <View style={styles.languageToggle}>
+              <TouchableOpacity
+                style={[
+                  styles.languageButton,
+                  currentLanguage === 'en' && styles.languageButtonActive,
+                ]}
+                onPress={() => changeLanguage('en')}
+              >
+                <Text
+                  style={[
+                    styles.languageButtonText,
+                    currentLanguage === 'en' && styles.languageButtonTextActive,
+                  ]}
+                >
+                  EN
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.languageButton,
+                  (currentLanguage === 'ar' || currentLanguage === 'ar-EG') && styles.languageButtonActive,
+                ]}
+                onPress={() => changeLanguage('ar')}
+              >
+                <Text
+                  style={[
+                    styles.languageButtonText,
+                    (currentLanguage === 'ar' || currentLanguage === 'ar-EG') && styles.languageButtonTextActive,
+                  ]}
+                >
+                  AR
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </ScrollView>
@@ -235,5 +287,29 @@ const styles = StyleSheet.create({
   settingLabel: {
     fontSize: 16,
     color: theme.colors.text,
+  },
+  languageToggle: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  languageButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.background,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  languageButtonActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  languageButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+  },
+  languageButtonTextActive: {
+    color: '#FFFFFF',
   },
 });

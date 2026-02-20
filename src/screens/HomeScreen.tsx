@@ -104,7 +104,10 @@ export default function HomeScreen({ navigation }: Props) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={theme.colors.accent} />
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>{t('app_name')}</Text>
+        <View>
+          <Text style={styles.headerTitle}>{t('app_name')}</Text>
+          <Text style={styles.headerTagline}>{t('home.tagline')}</Text>
+        </View>
         <View style={styles.headerButtons}>
           <TouchableOpacity
             style={styles.headerIconButton}
@@ -209,6 +212,12 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: theme.colors.primary,
     letterSpacing: 1,
+  },
+  headerTagline: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.75)',
+    marginTop: 2,
   },
   headerButtons: {
     flexDirection: 'row',
