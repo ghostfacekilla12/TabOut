@@ -126,7 +126,14 @@
     "person_owes_you": "عليه ليك {{name}}",
     "owes_you": "عليه ليك",
     "you_owe": "عليك",
-    "each_person_pays": "كل واحد يدفع"
+    "each_person_pays": "كل واحد يدفع",
+    "scan_receipt": "امسح الفاتورة",
+    "scan_receipt_choose": "اختار طريقة تمسح بيها الفاتورة:",
+    "take_photo": "خد صورة",
+    "choose_from_gallery": "اختار من الألبوم",
+    "receipt_scanned": "تم مسح الفاتورة!",
+    "scan_receipt_error": "فشل مسح الفاتورة. حاول تاني.",
+    "scanning": "بيمسح..."
   },
   "friends": {
     "title": "الأصحاب",

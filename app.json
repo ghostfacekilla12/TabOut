@@ -9,30 +9,29 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1B4D89"
-    },
-    "updates": {
-      "fallbackToCacheTimeout": 0
+      "backgroundColor": "#6200EE"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.tabout.app"
+      "bundleIdentifier": "com.tabout.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "TabOut needs camera access to scan receipts and extract bill information.",
+        "NSPhotoLibraryUsageDescription": "TabOut needs photo library access to select receipt images."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#1B4D89"
+        "backgroundColor": "#6200EE"
       },
       "package": "com.tabout.app",
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "RECEIVE_BOOT_COMPLETED",
-        "VIBRATE"
+        "WRITE_EXTERNAL_STORAGE"
       ]
     },
     "web": {
@@ -43,14 +42,19 @@
         "expo-notifications",
         {
           "icon": "./assets/icon.png",
-          "color": "#D4AF37"
+          "color": "#6200EE"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow TabOut to access your camera to scan receipts."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow TabOut to access your photos to attach receipts.",
-          "cameraPermission": "Allow TabOut to use your camera to take receipt photos."
+          "photosPermission": "Allow TabOut to access your photos to select receipt images."
         }
       ]
     ],

@@ -21,6 +21,7 @@ import { useAuth } from '../services/AuthContext';
 import { supabase } from '../services/supabase';
 import { theme } from '../utils/theme';
 import { calculateEqualSplit, calculateSplit } from '../utils/splitCalculator';
+import { scanReceiptFromCamera, scanReceiptFromGallery, scanAndParseReceipt } from '../services/ocrService';
 import TaxServiceToggle from '../components/TaxServiceToggle';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { Friend, Item } from '../types';
@@ -60,6 +61,7 @@ export default function NewSplitScreen({ navigation }: Props) {
   const [friendPickerVisible, setFriendPickerVisible] = useState(false);
   const [items, setItems] = useState<NewItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
 
   const loadFriends = async () => {
     if (friendsLoaded || !user) return;
@@ -128,6 +130,68 @@ export default function NewSplitScreen({ navigation }: Props) {
       return false;
     }
     return true;
+  };
+
+  const handleScanReceipt = async () => {
+    Alert.alert(
+      t('split.scan_receipt'),
+      t('split.scan_receipt_choose'),
+      [
+        {
+          text: t('split.take_photo'),
+          onPress: async () => {
+            setIsScanning(true);
+            try {
+              const imageUri = await scanReceiptFromCamera();
+              if (imageUri) {
+                const receiptData = await scanAndParseReceipt(imageUri);
+                setTotalAmount(receiptData.total.toString());
+                const itemsList = receiptData.items
+                  .map((item) => `${item.name}: ${item.price} EGP`)
+                  .join('\n');
+                Alert.alert(
+                  t('split.receipt_scanned'),
+                  `${t('split.total')}: ${receiptData.total} EGP\n\n${itemsList}`,
+                  [{ text: t('common.ok') }]
+                );
+              }
+            } catch (error) {
+              console.error('Receipt camera scan error:', error);
+              Alert.alert(t('common.error'), t('split.scan_receipt_error'));
+            } finally {
+              setIsScanning(false);
+            }
+          },
+        },
+        {
+          text: t('split.choose_from_gallery'),
+          onPress: async () => {
+            setIsScanning(true);
+            try {
+              const imageUri = await scanReceiptFromGallery();
+              if (imageUri) {
+                const receiptData = await scanAndParseReceipt(imageUri);
+                setTotalAmount(receiptData.total.toString());
+                const itemsList = receiptData.items
+                  .map((item) => `${item.name}: ${item.price} EGP`)
+                  .join('\n');
+                Alert.alert(
+                  t('split.receipt_scanned'),
+                  `${t('split.total')}: ${receiptData.total} EGP\n\n${itemsList}`,
+                  [{ text: t('common.ok') }]
+                );
+              }
+            } catch (error) {
+              console.error('Receipt gallery scan error:', error);
+              Alert.alert(t('common.error'), t('split.scan_receipt_error'));
+            } finally {
+              setIsScanning(false);
+            }
+          },
+        },
+        { text: t('common.cancel'), style: 'cancel' },
+      ]
+    );
   };
 
   const handleCreate = async () => {
@@ -296,6 +360,16 @@ export default function NewSplitScreen({ navigation }: Props) {
         {splitType === 'equal' ? (
           <View style={styles.section}>
             <Text style={styles.label}>{t('split.total_amount')}</Text>
+            <TouchableOpacity
+              style={[styles.scanBtn, isScanning && styles.disabledBtn]}
+              onPress={handleScanReceipt}
+              disabled={isScanning}
+            >
+              <Ionicons name="camera" size={18} color={theme.colors.primary} />
+              <Text style={styles.scanBtnText}>
+                {isScanning ? t('split.scanning') : t('split.scan_receipt')}
+              </Text>
+            </TouchableOpacity>
             <TextInput
               style={styles.input}
               value={totalAmount}
@@ -497,6 +571,19 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.sm,
   },
   addItemBtnText: { color: theme.colors.primary, fontWeight: '600' },
+  scanBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+    alignSelf: 'flex-start',
+  },
+  scanBtnText: { color: theme.colors.primary, fontWeight: '600', fontSize: 14 },
   breakdownCard: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.md,

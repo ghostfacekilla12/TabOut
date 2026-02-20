@@ -126,7 +126,14 @@
     "person_owes_you": "{{name}} owes you",
     "owes_you": "Owes you",
     "you_owe": "You owe",
-    "each_person_pays": "Each person pays"
+    "each_person_pays": "Each person pays",
+    "scan_receipt": "Scan Receipt",
+    "scan_receipt_choose": "Choose a method to scan your receipt:",
+    "take_photo": "Take Photo",
+    "choose_from_gallery": "Choose from Gallery",
+    "receipt_scanned": "Receipt Scanned!",
+    "scan_receipt_error": "Failed to scan receipt. Please try again.",
+    "scanning": "Scanning..."
   },
   "friends": {
     "title": "Friends",
