@@ -1,0 +1,62 @@
+{
+  "expo": {
+    "name": "TabOut",
+    "slug": "tabout",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1B4D89"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.tabout.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1B4D89"
+      },
+      "package": "com.tabout.app",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#D4AF37"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow TabOut to access your photos to attach receipts.",
+          "cameraPermission": "Allow TabOut to use your camera to take receipt photos."
+        }
+      ]
+    ],
+    "extra": {
+      "supabaseUrl": "https://zzgrluucnjnldeqgwdtc.supabase.co",
+      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp6Z3JsdXVjbmpubGRlcWd3ZHRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2MTMxNjksImV4cCI6MjA4NzE4OTE2OX0.3vv7J78l3ygSBFuXj2YkGPNkB38M2oumm1wARgSTekY"
+    }
+  }
+}
