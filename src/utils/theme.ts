@@ -1,21 +1,4 @@
-export const theme = {
-  colors: {
-    primary: '#D4AF37',
-    accent: '#1B4D89',
-    success: '#2ECC71',
-    warning: '#E74C3C',
-    background: '#F5F5F5',
-    surface: '#FFFFFF',
-    text: '#1A1A1A',
-    textSecondary: '#666666',
-    border: '#E0E0E0',
-    card: '#FFFFFF',
-    shadow: '#000000',
-    positive: '#2ECC71',
-    negative: '#E74C3C',
-    neutral: '#95A5A6',
-    disabled: '#BDBDBD',
-  },
+const sharedTheme = {
   spacing: {
     xs: 4,
     sm: 8,
@@ -57,4 +40,48 @@ export const theme = {
   },
 };
 
-export type Theme = typeof theme;
+export const lightTheme = {
+  ...sharedTheme,
+  colors: {
+    primary: '#D4AF37',
+    accent: '#1B4D89',
+    success: '#2ECC71',
+    warning: '#E74C3C',
+    background: '#F5F5F5',
+    surface: '#FFFFFF',
+    text: '#1A1A1A',
+    textSecondary: '#666666',
+    border: '#E0E0E0',
+    card: '#FFFFFF',
+    shadow: '#000000',
+    positive: '#2ECC71',
+    negative: '#E74C3C',
+    neutral: '#95A5A6',
+    disabled: '#BDBDBD',
+  },
+};
+
+export const darkTheme = {
+  ...sharedTheme,
+  colors: {
+    primary: '#D4AF37',
+    accent: '#1B4D89',
+    success: '#2ECC71',
+    warning: '#E74C3C',
+    background: '#121212',
+    surface: '#1E1E1E',
+    text: '#FFFFFF',
+    textSecondary: '#B0B0B0',
+    border: '#333333',
+    card: '#1E1E1E',
+    shadow: '#000000',
+    positive: '#2ECC71',
+    negative: '#E74C3C',
+    neutral: '#95A5A6',
+    disabled: '#555555',
+  },
+};
+
+export const theme = lightTheme;
+
+export type Theme = typeof lightTheme;

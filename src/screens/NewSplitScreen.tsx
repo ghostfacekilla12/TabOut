@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -43,7 +43,7 @@ const PRESETS = {
   none: { hasService: false, servicePercentage: 0, hasTax: false, taxPercentage: 0, hasDeliveryFee: false, deliveryFee: 0 },
 };
 
-export default function NewSplitScreen({ navigation }: Props) {
+export default function NewSplitScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const { user, profile, isGuest, setGuestMode } = useAuth();
 
@@ -65,6 +65,15 @@ export default function NewSplitScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  const receiptData = route.params?.receiptData;
+
+  useEffect(() => {
+    if (receiptData) {
+      if (receiptData.merchant) setDescription(receiptData.merchant);
+      if (receiptData.total) setTotalAmount(receiptData.total.toString());
+    }
+  }, [receiptData]);
 
   const loadFriends = async () => {
     if (friendsLoaded || !user) return;

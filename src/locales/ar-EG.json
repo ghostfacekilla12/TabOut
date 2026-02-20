@@ -188,7 +188,14 @@
     "default_service": "نسبة الخدمة الافتراضية",
     "default_tax": "نسبة الضريبة الافتراضية",
     "profile": "الملف الشخصي",
-    "notifications": "الإشعارات"
+    "notifications": "الإشعارات",
+    "dark_mode": "الوضع الداكن"
+  },
+  "scan": {
+    "title": "مسح",
+    "analyzing": "جارٍ تحليل الفاتورة...",
+    "grant_permission": "منح إذن الكاميرا",
+    "permission_required": "إذن الكاميرا مطلوب لمسح الفواتير"
   },
   "notifications": {
     "reminder_title": "تذكير بالدفع",

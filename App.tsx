@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider as PaperProvider, MD3LightTheme } from 'react-native-paper';
 
 import { AuthProvider } from './src/services/AuthContext';
+import { ThemeProvider } from './src/contexts/ThemeContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { requestNotificationPermissions, addNotificationResponseListener } from './src/services/notifications';
 import { theme as appTheme } from './src/utils/theme';
@@ -37,12 +38,14 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <PaperProvider theme={paperTheme}>
-        <AuthProvider>
-          <StatusBar style="light" />
-          <AppNavigator />
-        </AuthProvider>
-      </PaperProvider>
+      <ThemeProvider>
+        <PaperProvider theme={paperTheme}>
+          <AuthProvider>
+            <StatusBar style="light" />
+            <AppNavigator />
+          </AuthProvider>
+        </PaperProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

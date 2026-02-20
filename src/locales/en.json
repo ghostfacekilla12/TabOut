@@ -188,7 +188,14 @@
     "default_service": "Default Service %",
     "default_tax": "Default Tax %",
     "profile": "Profile",
-    "notifications": "Notifications"
+    "notifications": "Notifications",
+    "dark_mode": "Dark Mode"
+  },
+  "scan": {
+    "title": "Scan",
+    "analyzing": "Analyzing receipt...",
+    "grant_permission": "Grant Camera Permission",
+    "permission_required": "Camera permission required to scan receipts"
   },
   "notifications": {
     "reminder_title": "Payment Reminder",

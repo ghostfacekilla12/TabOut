@@ -18,6 +18,8 @@ import NewSplitScreen from '../screens/NewSplitScreen';
 import SplitDetailScreen from '../screens/SplitDetailScreen';
 import SplitBreakdownScreen from '../screens/SplitBreakdownScreen';
 import FriendDetailScreen from '../screens/FriendDetailScreen';
+import ReceiptScannerScreen from '../screens/ReceiptScannerScreen';
+import type { ReceiptData } from '../services/ocrService';
 
 export type AuthStackParamList = {
   Login: undefined;
@@ -26,13 +28,15 @@ export type AuthStackParamList = {
 
 export type MainTabParamList = {
   Home: undefined;
+  Scan: undefined;
   Friends: undefined;
   Stats: undefined;
 };
 
 export type RootStackParamList = {
   MainTabs: undefined;
-  NewSplit: undefined;
+  NewSplit: { receiptData?: ReceiptData } | undefined;
+  ReceiptScanner: undefined;
   SplitDetail: { splitId: string };
   SplitBreakdown: { splitId: string };
   FriendDetail: { friendId: string };
@@ -65,6 +69,7 @@ const MainTabNavigator = () => {
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap = 'home';
           if (route.name === 'Home') iconName = focused ? 'home' : 'home-outline';
+          else if (route.name === 'Scan') iconName = focused ? 'scan' : 'scan-outline';
           else if (route.name === 'Friends') iconName = focused ? 'people' : 'people-outline';
           else if (route.name === 'Stats') iconName = focused ? 'bar-chart' : 'bar-chart-outline';
           return <Ionicons name={iconName} size={size} color={color} />;
@@ -75,6 +80,11 @@ const MainTabNavigator = () => {
         name="Home"
         component={HomeScreen}
         options={{ tabBarLabel: t('home.title') }}
+      />
+      <MainTab.Screen
+        name="Scan"
+        component={ReceiptScannerScreen}
+        options={{ tabBarLabel: t('scan.title') }}
       />
       <MainTab.Screen
         name="Friends"
@@ -97,6 +107,11 @@ const MainNavigator = () => (
       name="NewSplit"
       component={NewSplitScreen}
       options={{ presentation: 'modal', headerShown: false }}
+    />
+    <RootStack.Screen
+      name="ReceiptScanner"
+      component={ReceiptScannerScreen}
+      options={{ headerShown: false, presentation: 'fullScreenModal' }}
     />
     <RootStack.Screen
       name="SplitDetail"

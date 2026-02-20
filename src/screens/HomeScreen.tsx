@@ -1,4 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -9,18 +12,15 @@ import {
   SafeAreaView,
   StatusBar,
 } from 'react-native';
-import { useTranslation } from 'react-i18next';
-import { Ionicons } from '@expo/vector-icons';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
+import BalanceDisplay from '../components/BalanceDisplay';
+import SplitCard from '../components/SplitCard';
+import type { RootStackParamList } from '../navigation/AppNavigator';
 import { useAuth } from '../services/AuthContext';
 import { supabase } from '../services/supabase';
-import { theme } from '../utils/theme';
-import { formatCurrency } from '../utils/currencyFormatter';
-import SplitCard from '../components/SplitCard';
-import BalanceDisplay from '../components/BalanceDisplay';
-import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { Split, SplitParticipant } from '../types';
+import { formatCurrency } from '../utils/currencyFormatter';
+import { theme } from '../utils/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MainTabs'>;
 
@@ -87,7 +87,9 @@ export default function HomeScreen({ navigation }: Props) {
       })
       .subscribe();
 
-    return () => { void supabase.removeChannel(subscription); };
+    return () => {
+      void supabase.removeChannel(subscription);
+    };
   }, [fetchSplits]);
 
   const onRefresh = () => {
@@ -103,15 +105,36 @@ export default function HomeScreen({ navigation }: Props) {
       <StatusBar barStyle="light-content" backgroundColor={theme.colors.accent} />
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{t('app_name')}</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('NewSplit')} style={styles.newSplitBtn}>
-          <Ionicons name="add" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity
+            style={styles.headerIconButton}
+            onPress={() => {
+              navigation.navigate('ReceiptScanner');
+            }}
+          >
+            <Ionicons name="camera" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              navigation.navigate('NewSplit');
+            }}
+            style={styles.newSplitBtn}
+          >
+            <Ionicons name="add" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <FlatList
         data={splits}
         keyExtractor={(item) => item.id}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.primary} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.colors.primary}
+          />
+        }
         ListHeaderComponent={
           <View>
             <BalanceDisplay
@@ -124,7 +147,9 @@ export default function HomeScreen({ navigation }: Props) {
               <Text style={styles.sectionTitle}>{t('home.recent_splits')}</Text>
               <TouchableOpacity
                 style={styles.newSplitButton}
-                onPress={() => navigation.navigate('NewSplit')}
+                onPress={() => {
+                  navigation.navigate('NewSplit');
+                }}
               >
                 <Ionicons name="add-circle" size={20} color={theme.colors.primary} />
                 <Text style={styles.newSplitText}>{t('home.new_split')}</Text>
@@ -138,7 +163,9 @@ export default function HomeScreen({ navigation }: Props) {
             currentUserId={user?.id ?? ''}
             currency={currency}
             language={language}
-            onPress={() => navigation.navigate('SplitDetail', { splitId: item.id })}
+            onPress={() => {
+              navigation.navigate('SplitDetail', { splitId: item.id });
+            }}
           />
         )}
         ListEmptyComponent={
@@ -149,7 +176,9 @@ export default function HomeScreen({ navigation }: Props) {
               <Text style={styles.emptyDesc}>{t('home.no_splits_desc')}</Text>
               <TouchableOpacity
                 style={styles.emptyButton}
-                onPress={() => navigation.navigate('NewSplit')}
+                onPress={() => {
+                  navigation.navigate('NewSplit');
+                }}
               >
                 <Text style={styles.emptyButtonText}>{t('home.new_split')}</Text>
               </TouchableOpacity>
@@ -180,6 +209,19 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: theme.colors.primary,
     letterSpacing: 1,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  headerIconButton: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: theme.borderRadius.round,
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   newSplitBtn: {
     backgroundColor: theme.colors.primary,

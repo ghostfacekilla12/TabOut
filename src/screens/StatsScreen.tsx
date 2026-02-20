@@ -7,12 +7,14 @@ import {
   SafeAreaView,
   StatusBar,
   RefreshControl,
+  Switch,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '../services/AuthContext';
 import { supabase } from '../services/supabase';
 import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
 import { formatCurrency } from '../utils/currencyFormatter';
 
 interface MonthlyData {
@@ -28,6 +30,7 @@ interface LeaderboardEntry {
 export default function StatsScreen() {
   const { t } = useTranslation();
   const { user, profile } = useAuth();
+  const { isDark, toggleTheme, theme: contextTheme } = useTheme();
 
   const [totalSpent, setTotalSpent] = useState(0);
   const [avgSplitSize, setAvgSplitSize] = useState(0);
@@ -135,6 +138,28 @@ export default function StatsScreen() {
             <Text style={styles.emptyText}>{t('home.no_splits')}</Text>
           </View>
         )}
+
+        <View
+          style={[
+            styles.settingsSection,
+            { backgroundColor: contextTheme.colors.surface },
+          ]}
+        >
+          <Text style={[styles.sectionTitle, { color: contextTheme.colors.text }]}>
+            {t('settings.title')}
+          </Text>
+          <View style={styles.settingRow}>
+            <Text style={[styles.settingLabel, { color: contextTheme.colors.text }]}>
+              {t('settings.dark_mode')}
+            </Text>
+            <Switch
+              value={isDark}
+              onValueChange={toggleTheme}
+              trackColor={{ false: '#D0D0D0', true: contextTheme.colors.primary }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -188,4 +213,27 @@ const styles = StyleSheet.create({
     ...theme.shadows.sm,
   },
   emptyText: { color: theme.colors.textSecondary, fontSize: 16 },
+  settingsSection: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    ...theme.shadows.sm,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.text,
+    marginBottom: theme.spacing.md,
+  },
+  settingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.xs,
+  },
+  settingLabel: {
+    fontSize: 16,
+    color: theme.colors.text,
+  },
 });
