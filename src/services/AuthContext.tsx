@@ -14,7 +14,8 @@ interface AuthContextValue {
   signUpWithEmail: (
     email: string,
     password: string,
-    name: string
+    name: string,
+    phone?: string
   ) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: Error | null }>;
@@ -41,7 +42,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
       setUser(s?.user ?? null);
       if (s?.user) {
@@ -57,11 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchProfile = async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
 
       if (!error && data) {
         setProfile(data as Profile);
@@ -76,13 +75,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error };
   };
 
-  const signUpWithEmail = async (email: string, password: string, name: string) => {
+  const signUpWithEmail = async (email: string, password: string, name: string, phone?: string) => {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (!error && data.user) {
       await supabase.from('profiles').insert({
         id: data.user.id,
         email,
         name,
+        phone: phone || null,
         language: 'en',
         currency: 'EGP',
         default_service_percentage: 12,
@@ -100,10 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateProfile = async (updates: Partial<Profile>) => {
     if (!user) return { error: new Error('Not authenticated') };
 
-    const { error } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', user.id);
+    const { error } = await supabase.from('profiles').update(updates).eq('id', user.id);
 
     if (!error) {
       setProfile((prev) => (prev ? { ...prev, ...updates } : null));

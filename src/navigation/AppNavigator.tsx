@@ -29,6 +29,7 @@ import CashDebtScreen from '../screens/CashDebtScreen';
 import QuickSplitScreen from '../screens/QuickSplitScreen';
 import BalancesScreen from '../screens/BalancesScreen';
 import FriendBalanceDetailScreen from '../screens/FriendBalanceDetailScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 import type { ReceiptData } from '../services/mindeeOCR';
 import type { SplitResultsRouteParams } from '../screens/SplitResultsScreen';
 
@@ -43,6 +44,7 @@ export type MainTabParamList = {
   Friends: undefined;
   Groups: undefined;
   Stats: undefined;
+  Settings: undefined;
 };
 
 export type RootStackParamList = {
@@ -94,8 +96,10 @@ const MainTabNavigator = () => {
           if (route.name === 'Home') iconName = focused ? 'home' : 'home-outline';
           else if (route.name === 'Scan') iconName = focused ? 'scan' : 'scan-outline';
           else if (route.name === 'Friends') iconName = focused ? 'people' : 'people-outline';
-          else if (route.name === 'Groups') iconName = focused ? 'people-circle' : 'people-circle-outline';
+          else if (route.name === 'Groups')
+            iconName = focused ? 'people-circle' : 'people-circle-outline';
           else if (route.name === 'Stats') iconName = focused ? 'bar-chart' : 'bar-chart-outline';
+          else if (route.name === 'Settings') iconName = focused ? 'settings' : 'settings-outline';
           return <Ionicons name={iconName} size={size} color={color} />;
         },
       })}
@@ -125,13 +129,22 @@ const MainTabNavigator = () => {
         component={StatsScreen}
         options={{ tabBarLabel: t('stats.title') }}
       />
+      <MainTab.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{ tabBarLabel: t('settings.title') }}
+      />
     </MainTab.Navigator>
   );
 };
 
 const MainNavigator = () => (
   <RootStack.Navigator>
-    <RootStack.Screen name="MainTabs" component={MainTabNavigator} options={{ headerShown: false }} />
+    <RootStack.Screen
+      name="MainTabs"
+      component={MainTabNavigator}
+      options={{ headerShown: false }}
+    />
     <RootStack.Screen
       name="NewSplit"
       component={NewSplitScreen}
@@ -197,11 +210,7 @@ const MainNavigator = () => (
       component={QuickSplitScreen}
       options={{ headerShown: false, presentation: 'modal' }}
     />
-    <RootStack.Screen
-      name="Balances"
-      component={BalancesScreen}
-      options={{ headerShown: false }}
-    />
+    <RootStack.Screen name="Balances" component={BalancesScreen} options={{ headerShown: false }} />
     <RootStack.Screen
       name="FriendBalanceDetail"
       component={FriendBalanceDetailScreen}
@@ -216,7 +225,14 @@ export const AppNavigator = () => {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.accent }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: theme.colors.accent,
+        }}
+      >
         <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );

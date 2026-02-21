@@ -37,7 +37,7 @@
     "signup": "Sign Up",
     "logout": "Log Out",
     "email": "Email",
-    "phone": "Phone Number",
+    "phone": "Phone Number (Optional)",
     "password": "Password",
     "confirm_password": "Confirm Password",
     "name": "Name",
@@ -45,7 +45,7 @@
     "no_account": "Don't have an account?",
     "have_account": "Already have an account?",
     "email_placeholder": "Enter your email",
-    "phone_placeholder": "Enter your phone number",
+    "phone_placeholder": "+1234567890 (helps friends find you)",
     "password_placeholder": "Enter your password",
     "name_placeholder": "Enter your name",
     "login_error": "Invalid email or password",
@@ -59,7 +59,8 @@
     "upgrade_required": "Upgrade to Create More",
     "upgrade_message": "You've reached the limit of 3 splits. Sign up to create unlimited splits and sync across devices!",
     "upgrade_benefits": "• Unlimited splits\n• Cloud sync\n• Multi-device access\n• Share with friends",
-    "guest_limit_reached": "Guest Limit Reached"
+    "guest_limit_reached": "Guest Limit Reached",
+    "phone_hint": "💡 Adding your phone helps friends find you easier when importing contacts!"
   },
   "home": {
     "title": "Tab",
@@ -186,7 +187,8 @@
     "all_settled": "All settled up!",
     "total_balance": "Total Balance",
     "not_on_tab": "Not on Tab Yet",
-    "not_on_tab_desc": "{{name}} is not on Tab yet. Invite them!"
+    "not_on_tab_desc": "{{name}} is not on Tab yet. Invite them!",
+    "no_contact_info": "No email or phone"
   },
   "friend_detail": {
     "splits": "Splits",
@@ -224,7 +226,9 @@
     "notifications": "Notifications",
     "dark_mode": "Dark Mode",
     "language_changed_title": "Language Changed",
-    "language_changed_message": "Please restart the app to apply language changes."
+    "language_changed_message": "Please restart the app to apply language changes.",
+    "logout": "Logout",
+    "logout_confirm": "Are you sure you want to logout?"
   },
   "scan": {
     "title": "Scan",

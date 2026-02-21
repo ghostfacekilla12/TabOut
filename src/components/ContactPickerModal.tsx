@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Modal,
   View,
   Text,
   FlatList,
@@ -8,7 +7,6 @@ import {
   StyleSheet,
   TextInput,
   ActivityIndicator,
-  SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Contacts from 'expo-contacts';
@@ -65,8 +63,9 @@ export const ContactPickerModal: React.FC<ContactPickerModalProps> = ({
   );
 
   const handleSelectContact = (contact: Contacts.Contact) => {
-    const phone = contact.phoneNumbers?.[0]?.number;
     const email = contact.emails?.[0]?.email;
+    const phone = contact.phoneNumbers?.[0]?.number;
+    if (!email && !phone) return;
     onSelectContact({
       name: contact.name ?? 'Unknown',
       email,
@@ -75,9 +74,11 @@ export const ContactPickerModal: React.FC<ContactPickerModalProps> = ({
     onClose();
   };
 
+  if (!visible) return null;
+
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={styles.container}>
+    <View style={styles.overlay}>
+      <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>{t('friends.select_contact')}</Text>
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -99,26 +100,35 @@ export const ContactPickerModal: React.FC<ContactPickerModalProps> = ({
           <FlatList
             data={filteredContacts}
             keyExtractor={(item, index) => item.id ?? item.name ?? String(index)}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.contactItem}
-                onPress={() => handleSelectContact(item)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.avatar}>
-                  <Ionicons name="person" size={24} color="#666" />
-                </View>
-                <View style={styles.contactInfo}>
-                  <Text style={styles.contactName}>{item.name}</Text>
-                  {item.emails?.[0]?.email && (
-                    <Text style={styles.contactDetail}>{item.emails[0].email}</Text>
-                  )}
-                  {!item.emails?.[0]?.email && item.phoneNumbers?.[0]?.number && (
-                    <Text style={styles.contactDetail}>{item.phoneNumbers[0].number}</Text>
-                  )}
-                </View>
-              </TouchableOpacity>
-            )}
+            renderItem={({ item }) => {
+              const hasContact = !!(item.emails?.[0]?.email || item.phoneNumbers?.[0]?.number);
+              return (
+                <TouchableOpacity
+                  style={[styles.contactItem, !hasContact && styles.contactItemDisabled]}
+                  onPress={() => handleSelectContact(item)}
+                  activeOpacity={hasContact ? 0.7 : 1}
+                  disabled={!hasContact}
+                >
+                  <View style={[styles.avatar, !hasContact && styles.avatarDisabled]}>
+                    <Ionicons name="person" size={24} color={hasContact ? '#666' : '#bbb'} />
+                  </View>
+                  <View style={styles.contactInfo}>
+                    <Text style={[styles.contactName, !hasContact && styles.contactNameDisabled]}>
+                      {item.name}
+                    </Text>
+                    {item.emails?.[0]?.email && (
+                      <Text style={styles.contactDetail}>{item.emails[0].email}</Text>
+                    )}
+                    {!item.emails?.[0]?.email && item.phoneNumbers?.[0]?.number && (
+                      <Text style={styles.contactDetail}>{item.phoneNumbers[0].number}</Text>
+                    )}
+                    {!hasContact && (
+                      <Text style={styles.noContactDetail}>{t('friends.no_contact_info')}</Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            }}
             ListEmptyComponent={
               <Text style={styles.emptyText}>
                 {search ? t('friends.no_contacts_match') : t('friends.no_contacts_found')}
@@ -126,15 +136,29 @@ export const ContactPickerModal: React.FC<ContactPickerModalProps> = ({
             }
           />
         )}
-      </SafeAreaView>
-    </Modal>
+      </View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    zIndex: 100,
+    elevation: 100,
+    justifyContent: 'flex-end',
+  },
   container: {
-    flex: 1,
+    flex: 0,
+    maxHeight: '85%',
     backgroundColor: '#fff',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
   },
   header: {
     flexDirection: 'row',
@@ -167,6 +191,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
+  contactItemDisabled: {
+    opacity: 0.4,
+  },
   avatar: {
     width: 44,
     height: 44,
@@ -175,6 +202,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+  },
+  avatarDisabled: {
+    backgroundColor: '#f8f8f8',
   },
   contactInfo: {
     flex: 1,
@@ -185,9 +215,17 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
     marginBottom: 2,
   },
+  contactNameDisabled: {
+    color: '#999',
+  },
   contactDetail: {
     fontSize: 14,
     color: '#666',
+  },
+  noContactDetail: {
+    fontSize: 12,
+    color: '#bbb',
+    fontStyle: 'italic',
   },
   emptyText: {
     textAlign: 'center',

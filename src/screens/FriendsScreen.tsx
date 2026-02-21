@@ -49,17 +49,25 @@ export default function FriendsScreen({ navigation }: Props) {
     try {
       const { data } = await supabase
         .from('friendships')
-        .select(`
+        .select(
+          `
           friend_id,
           profiles!friendships_friend_id_fkey(id, name, email, phone, avatar_url)
-        `)
+        `
+        )
         .eq('user_id', user.id);
 
       if (data) {
         const friendList: Friend[] = data
           .filter((d) => d.profiles)
           .map((d) => {
-            const p = d.profiles as { id: string; name: string; email?: string; phone?: string; avatar_url?: string };
+            const p = d.profiles as {
+              id: string;
+              name: string;
+              email?: string;
+              phone?: string;
+              avatar_url?: string;
+            };
             return {
               id: p.id,
               name: p.name,
@@ -124,10 +132,15 @@ export default function FriendsScreen({ navigation }: Props) {
   };
 
   const handleImportContact = () => {
+    setAddModalVisible(false);
     setContactPickerVisible(true);
   };
 
-  const handleContactSelected = async (contact: { name: string; email?: string; phone?: string }) => {
+  const handleContactSelected = async (contact: {
+    name: string;
+    email?: string;
+    phone?: string;
+  }) => {
     const { name, email, phone } = contact;
 
     if (!email && !phone) {
@@ -138,21 +151,52 @@ export default function FriendsScreen({ navigation }: Props) {
     if (!user) return;
 
     try {
-      const query = email
-        ? `email.eq.${email}`
-        : `phone.eq.${(phone ?? '').replace(/\s+/g, '')}`;
+      // Normalize phone: strip all non-digit chars, use last 10 digits for matching
+      const normalizePhone = (p: string) => p.replace(/\D/g, '');
+      const normalizedPhone = phone ? normalizePhone(phone) : '';
+      const phoneDigits = normalizedPhone.slice(-10);
 
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('id')
-        .or(query)
-        .single();
+      let profileData: { id: string } | null = null;
+
+      if (email) {
+        const { data } = await supabase.from('profiles').select('id').eq('email', email).single();
+        profileData = data;
+      }
+
+      if (!profileData && phoneDigits) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('id, phone')
+          .not('phone', 'is', null);
+        if (data) {
+          const match = data.find((row: { id: string; phone?: string }) => {
+            const rowDigits = normalizePhone(row.phone ?? '').slice(-10);
+            return rowDigits === phoneDigits && rowDigits.length === 10;
+          });
+          profileData = match ?? null;
+        }
+      }
 
       if (!profileData) {
-        Alert.alert(
-          t('friends.not_on_tab'),
-          t('friends.not_on_tab_desc', { name })
-        );
+        Alert.alert(t('friends.not_on_tab'), t('friends.not_on_tab_desc', { name }));
+        return;
+      }
+
+      if (profileData.id === user.id) {
+        Alert.alert(t('common.error'), t('friends.friend_add_error'));
+        return;
+      }
+
+      // Check if already friends
+      const { data: existing } = await supabase
+        .from('friendships')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .eq('friend_id', profileData.id)
+        .single();
+
+      if (existing) {
+        Alert.alert(t('common.ok'), t('friends.friend_added'));
         return;
       }
 
@@ -162,7 +206,6 @@ export default function FriendsScreen({ navigation }: Props) {
       ]);
 
       Alert.alert(t('common.ok'), t('friends.contact_imported'));
-      setAddModalVisible(false);
       fetchFriends();
     } catch (err) {
       console.error('Contact import error:', err);
@@ -200,7 +243,16 @@ export default function FriendsScreen({ navigation }: Props) {
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchFriends(); }} tintColor={theme.colors.primary} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              fetchFriends();
+            }}
+            tintColor={theme.colors.primary}
+          />
+        }
         renderItem={({ item }) => (
           <FriendCard
             friend={item}
@@ -213,7 +265,10 @@ export default function FriendsScreen({ navigation }: Props) {
               <Ionicons name="people-outline" size={64} color={theme.colors.border} />
               <Text style={styles.emptyTitle}>{t('friends.no_friends')}</Text>
               <Text style={styles.emptyDesc}>{t('friends.no_friends_desc')}</Text>
-              <TouchableOpacity style={styles.addFriendBtn} onPress={() => setAddModalVisible(true)}>
+              <TouchableOpacity
+                style={styles.addFriendBtn}
+                onPress={() => setAddModalVisible(true)}
+              >
                 <Text style={styles.addFriendBtnText}>{t('friends.add_friend')}</Text>
               </TouchableOpacity>
             </View>
@@ -228,7 +283,12 @@ export default function FriendsScreen({ navigation }: Props) {
             <Text style={styles.modalTitle}>{t('friends.add_friend')}</Text>
 
             <TouchableOpacity style={styles.importContactBtn} onPress={handleImportContact}>
-              <Ionicons name="people-outline" size={20} color="#FFFFFF" style={styles.importContactIcon} />
+              <Ionicons
+                name="people-outline"
+                size={20}
+                color="#FFFFFF"
+                style={styles.importContactIcon}
+              />
               <Text style={styles.importContactText}>{t('friends.import_contacts')}</Text>
             </TouchableOpacity>
 
@@ -251,7 +311,10 @@ export default function FriendsScreen({ navigation }: Props) {
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={styles.cancelBtn}
-                onPress={() => { setAddModalVisible(false); setAddInput(''); }}
+                onPress={() => {
+                  setAddModalVisible(false);
+                  setAddInput('');
+                }}
               >
                 <Text style={styles.cancelBtnText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
@@ -278,110 +341,140 @@ export default function FriendsScreen({ navigation }: Props) {
   );
 }
 
-const createStyles = (theme: Theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background },
-  header: {
-    backgroundColor: theme.colors.accent,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
-  },
-  headerTitle: { fontSize: 22, fontWeight: '700', color: '#FFFFFF' },
-  addBtn: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.borderRadius.round,
-    width: 36,
-    height: 36,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.surface,
-    margin: theme.spacing.md,
-    borderRadius: theme.borderRadius.md,
-    paddingHorizontal: theme.spacing.md,
-    ...theme.shadows.sm,
-  },
-  searchInput: {
-    flex: 1,
-    paddingVertical: theme.spacing.sm,
-    marginLeft: theme.spacing.sm,
-    fontSize: 16,
-    color: theme.colors.text,
-  },
-  listContent: { paddingBottom: theme.spacing.xl },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: theme.spacing.xxl,
-    paddingHorizontal: theme.spacing.lg,
-  },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: theme.colors.text, marginTop: theme.spacing.md },
-  emptyDesc: { fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center', marginTop: theme.spacing.sm },
-  addFriendBtn: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.borderRadius.md,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.sm,
-    marginTop: theme.spacing.lg,
-  },
-  addFriendBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 16 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: {
-    backgroundColor: theme.colors.surface,
-    borderTopLeftRadius: theme.borderRadius.xl,
-    borderTopRightRadius: theme.borderRadius.xl,
-    padding: theme.spacing.lg,
-  },
-  modalTitle: { fontSize: 20, fontWeight: '700', color: theme.colors.text, marginBottom: theme.spacing.md },
-  importContactBtn: {
-    backgroundColor: theme.colors.success,
-    borderRadius: theme.borderRadius.md,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: theme.spacing.md,
-  },
-  importContactIcon: { marginRight: 8 },
-  importContactText: { color: '#FFFFFF', fontWeight: '700', fontSize: 16 },
-  orDivider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: theme.spacing.md,
-  },
-  orLine: { flex: 1, height: 1, backgroundColor: theme.colors.border },
-  orText: { paddingHorizontal: theme.spacing.sm, color: theme.colors.textSecondary, fontSize: 14 },
-  modalLabel: { fontSize: 14, fontWeight: '500', color: theme.colors.text, marginBottom: theme.spacing.xs },
-  modalInput: {
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.borderRadius.md,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    fontSize: 16,
-    color: theme.colors.text,
-    backgroundColor: theme.colors.background,
-  },
-  modalButtons: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: theme.spacing.lg, gap: theme.spacing.sm },
-  cancelBtn: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.borderRadius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  cancelBtnText: { color: theme.colors.textSecondary, fontWeight: '600' },
-  confirmBtn: {
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.borderRadius.md,
-  },
-  confirmBtnText: { color: '#FFFFFF', fontWeight: '700' },
-  disabledBtn: { opacity: 0.6 },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.colors.background },
+    header: {
+      backgroundColor: theme.colors.accent,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: theme.spacing.lg,
+      paddingVertical: theme.spacing.md,
+    },
+    headerTitle: { fontSize: 22, fontWeight: '700', color: '#FFFFFF' },
+    addBtn: {
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.borderRadius.round,
+      width: 36,
+      height: 36,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    searchContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.colors.surface,
+      margin: theme.spacing.md,
+      borderRadius: theme.borderRadius.md,
+      paddingHorizontal: theme.spacing.md,
+      ...theme.shadows.sm,
+    },
+    searchInput: {
+      flex: 1,
+      paddingVertical: theme.spacing.sm,
+      marginLeft: theme.spacing.sm,
+      fontSize: 16,
+      color: theme.colors.text,
+    },
+    listContent: { paddingBottom: theme.spacing.xl },
+    emptyContainer: {
+      alignItems: 'center',
+      paddingVertical: theme.spacing.xxl,
+      paddingHorizontal: theme.spacing.lg,
+    },
+    emptyTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: theme.colors.text,
+      marginTop: theme.spacing.md,
+    },
+    emptyDesc: {
+      fontSize: 14,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+      marginTop: theme.spacing.sm,
+    },
+    addFriendBtn: {
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.borderRadius.md,
+      paddingHorizontal: theme.spacing.lg,
+      paddingVertical: theme.spacing.sm,
+      marginTop: theme.spacing.lg,
+    },
+    addFriendBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 16 },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+    modalContent: {
+      backgroundColor: theme.colors.surface,
+      borderTopLeftRadius: theme.borderRadius.xl,
+      borderTopRightRadius: theme.borderRadius.xl,
+      padding: theme.spacing.lg,
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: theme.colors.text,
+      marginBottom: theme.spacing.md,
+    },
+    importContactBtn: {
+      backgroundColor: theme.colors.success,
+      borderRadius: theme.borderRadius.md,
+      paddingHorizontal: theme.spacing.lg,
+      paddingVertical: theme.spacing.md,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: theme.spacing.md,
+    },
+    importContactIcon: { marginRight: 8 },
+    importContactText: { color: '#FFFFFF', fontWeight: '700', fontSize: 16 },
+    orDivider: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: theme.spacing.md,
+    },
+    orLine: { flex: 1, height: 1, backgroundColor: theme.colors.border },
+    orText: {
+      paddingHorizontal: theme.spacing.sm,
+      color: theme.colors.textSecondary,
+      fontSize: 14,
+    },
+    modalLabel: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: theme.colors.text,
+      marginBottom: theme.spacing.xs,
+    },
+    modalInput: {
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      borderRadius: theme.borderRadius.md,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.sm,
+      fontSize: 16,
+      color: theme.colors.text,
+      backgroundColor: theme.colors.background,
+    },
+    modalButtons: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      marginTop: theme.spacing.lg,
+      gap: theme.spacing.sm,
+    },
+    cancelBtn: {
+      paddingHorizontal: theme.spacing.lg,
+      paddingVertical: theme.spacing.sm,
+      borderRadius: theme.borderRadius.md,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    cancelBtnText: { color: theme.colors.textSecondary, fontWeight: '600' },
+    confirmBtn: {
+      backgroundColor: theme.colors.primary,
+      paddingHorizontal: theme.spacing.lg,
+      paddingVertical: theme.spacing.sm,
+      borderRadius: theme.borderRadius.md,
+    },
+    confirmBtnText: { color: '#FFFFFF', fontWeight: '700' },
+    disabledBtn: { opacity: 0.6 },
+  });

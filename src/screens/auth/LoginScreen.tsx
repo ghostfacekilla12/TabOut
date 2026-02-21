@@ -11,6 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { useAuth } from '../../services/AuthContext';
@@ -59,36 +60,50 @@ export default function LoginScreen({ navigation }: Props) {
 
         <View style={styles.form}>
           <Text style={styles.label}>{t('auth.email')}</Text>
-          <TextInput
-            style={styles.input}
-            value={email}
-            onChangeText={setEmail}
-            placeholder={t('auth.email_placeholder')}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-            placeholderTextColor={theme.colors.textSecondary}
-          />
+          <View style={styles.inputContainer}>
+            <Ionicons
+              name="mail-outline"
+              size={20}
+              color={theme.colors.textSecondary}
+              style={styles.icon}
+            />
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              placeholder={t('auth.email_placeholder')}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              placeholderTextColor={theme.colors.textSecondary}
+            />
+          </View>
 
           <Text style={styles.label}>{t('auth.password')}</Text>
-          <TextInput
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            placeholder={t('auth.password_placeholder')}
-            secureTextEntry
-            autoComplete="password"
-            placeholderTextColor={theme.colors.textSecondary}
-          />
+          <View style={styles.inputContainer}>
+            <Ionicons
+              name="lock-closed-outline"
+              size={20}
+              color={theme.colors.textSecondary}
+              style={styles.icon}
+            />
+            <TextInput
+              style={styles.input}
+              value={password}
+              onChangeText={setPassword}
+              placeholder={t('auth.password_placeholder')}
+              secureTextEntry
+              autoComplete="password"
+              placeholderTextColor={theme.colors.textSecondary}
+            />
+          </View>
 
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
             onPress={handleLogin}
             disabled={loading}
           >
-            <Text style={styles.buttonText}>
-              {loading ? t('common.loading') : t('auth.login')}
-            </Text>
+            <Text style={styles.buttonText}>{loading ? t('common.loading') : t('auth.login')}</Text>
           </TouchableOpacity>
 
           <View style={styles.footer}>
@@ -107,90 +122,99 @@ export default function LoginScreen({ navigation }: Props) {
   );
 }
 
-const createStyles = (theme: Theme) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.accent,
-  },
-  scroll: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: theme.spacing.lg,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: theme.spacing.xxl,
-  },
-  appName: {
-    fontSize: 42,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: 2,
-  },
-  tagline: {
-    fontSize: 20,
-    color: 'rgba(255,255,255,0.85)',
-    marginTop: theme.spacing.xs,
-  },
-  form: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.lg,
-    ...theme.shadows.md,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: theme.colors.text,
-    marginBottom: theme.spacing.xs,
-    marginTop: theme.spacing.sm,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.borderRadius.md,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    fontSize: 16,
-    color: theme.colors.text,
-    backgroundColor: theme.colors.background,
-  },
-  button: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
-    alignItems: 'center',
-    marginTop: theme.spacing.lg,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: theme.spacing.md,
-  },
-  footerText: {
-    color: theme.colors.textSecondary,
-  },
-  linkText: {
-    color: theme.colors.accent,
-    fontWeight: '600',
-  },
-  guestButton: {
-    marginTop: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
-    alignItems: 'center',
-  },
-  guestButtonText: {
-    color: theme.colors.textSecondary,
-    fontSize: 16,
-    fontWeight: '600',
-    textDecorationLine: 'underline',
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.accent,
+    },
+    scroll: {
+      flexGrow: 1,
+      justifyContent: 'center',
+      padding: theme.spacing.lg,
+    },
+    header: {
+      alignItems: 'center',
+      marginBottom: theme.spacing.xxl,
+    },
+    appName: {
+      fontSize: 42,
+      fontWeight: '800',
+      color: '#FFFFFF',
+      letterSpacing: 2,
+    },
+    tagline: {
+      fontSize: 20,
+      color: 'rgba(255,255,255,0.85)',
+      marginTop: theme.spacing.xs,
+    },
+    form: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.borderRadius.lg,
+      padding: theme.spacing.lg,
+      ...theme.shadows.md,
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: theme.colors.text,
+      marginBottom: theme.spacing.xs,
+      marginTop: theme.spacing.sm,
+    },
+    inputContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      borderRadius: theme.borderRadius.md,
+      paddingHorizontal: theme.spacing.sm,
+      backgroundColor: theme.colors.background,
+    },
+    icon: {
+      marginRight: theme.spacing.xs,
+    },
+    input: {
+      flex: 1,
+      paddingVertical: theme.spacing.sm,
+      fontSize: 16,
+      color: theme.colors.text,
+    },
+    button: {
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.borderRadius.md,
+      padding: theme.spacing.md,
+      alignItems: 'center',
+      marginTop: theme.spacing.lg,
+    },
+    buttonDisabled: {
+      opacity: 0.6,
+    },
+    buttonText: {
+      color: '#FFFFFF',
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    footer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      marginTop: theme.spacing.md,
+    },
+    footerText: {
+      color: theme.colors.textSecondary,
+    },
+    linkText: {
+      color: theme.colors.accent,
+      fontWeight: '600',
+    },
+    guestButton: {
+      marginTop: theme.spacing.lg,
+      paddingVertical: theme.spacing.md,
+      alignItems: 'center',
+    },
+    guestButtonText: {
+      color: theme.colors.textSecondary,
+      fontSize: 16,
+      fontWeight: '600',
+      textDecorationLine: 'underline',
+    },
+  });
