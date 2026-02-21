@@ -38,6 +38,7 @@ interface NewItem {
   id: string;
   name: string;
   price: string;
+  description?: string;
   ordered_by: string;
   assignedTo: string[];
 }
@@ -94,10 +95,11 @@ export default function NewSplitScreen({ navigation, route }: Props) {
     if (data.items && data.items.length > 0) {
       setSplitType('itemized');
       setItems(
-        data.items.map((item: { description: string; amount: number }, idx: number) => ({
+        data.items.map((item: { name: string; price: number; description?: string }, idx: number) => ({
           id: `${Date.now()}_${idx}`,
-          name: item.description,
-          price: item.amount.toFixed(2),
+          name: item.name,
+          price: item.price.toFixed(2),
+          description: item.description,
           ordered_by: user?.id ?? '',
           assignedTo: [user?.id ?? ''],
         }))
@@ -210,7 +212,7 @@ export default function NewSplitScreen({ navigation, route }: Props) {
                 const data = await analyzeReceiptWithMindee(imageUri);
                 applyReceiptDataToForm(data);
                 const itemsList = data.items
-                  .map((item) => `${item.description}: ${item.amount}`)
+                  .map((item) => `${item.name}: ${item.price}`)
                   .join('\n');
                 Alert.alert(
                   t('split.receipt_scanned'),
@@ -236,7 +238,7 @@ export default function NewSplitScreen({ navigation, route }: Props) {
                 const data = await analyzeReceiptWithMindee(imageUri);
                 applyReceiptDataToForm(data);
                 const itemsList = data.items
-                  .map((item) => `${item.description}: ${item.amount}`)
+                  .map((item) => `${item.name}: ${item.price}`)
                   .join('\n');
                 Alert.alert(
                   t('split.receipt_scanned'),
@@ -566,6 +568,7 @@ export default function NewSplitScreen({ navigation, route }: Props) {
                       <Ionicons name="remove-circle" size={24} color={theme.colors.warning} />
                     </TouchableOpacity>
                   </View>
+                  {item.description && <Text style={styles.itemDescription}>{item.description}</Text>}
                   {/* Assignment chips */}
                   {allParticipants.length > 1 && (
                     <View style={styles.assignRow}>
@@ -879,6 +882,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.xs },
   itemNameInput: { flex: 2, marginBottom: 0 },
   itemPriceInput: { flex: 1, marginBottom: 0 },
+  itemDescription: { fontSize: 13, color: theme.colors.textSecondary, fontStyle: 'italic', marginBottom: theme.spacing.xs, paddingHorizontal: 2 },
   addItemBtn: {
     flexDirection: 'row',
     alignItems: 'center',
