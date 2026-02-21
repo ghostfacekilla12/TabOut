@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import type { Theme } from '../utils/theme';
 import { formatCurrency } from '../utils/currencyFormatter';
 import { formatRelativeTime } from '../utils/dateFormatter';
 import type { Split, Language, Currency } from '../types';
@@ -18,8 +19,10 @@ interface Props {
 
 export default function SplitCard({ split, currentUserId, currency, language, onPress }: Props) {
   const { t } = useTranslation();
+  const { theme } = useTheme();
   const isPayer = split.paid_by === currentUserId;
   const isSettled = split.settled;
+  const styles = createStyles(theme);
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
@@ -52,7 +55,7 @@ export default function SplitCard({ split, currentUserId, currency, language, on
         <Text style={[styles.amount, { color: isPayer ? theme.colors.success : theme.colors.warning }]}>
           {isPayer ? '+' : '-'}{formatCurrency(split.total_amount, currency, language)}
         </Text>
-        <View style={[styles.statusBadge, { backgroundColor: isSettled ? '#E8F8F0' : '#FEF0F0' }]}>
+        <View style={[styles.statusBadge, { backgroundColor: isSettled ? theme.colors.success + '22' : theme.colors.warning + '22' }]}>
           <Text style={[styles.statusText, { color: isSettled ? theme.colors.success : theme.colors.warning }]}>
             {t(isSettled ? 'split.settled' : 'split.pending')}
           </Text>
@@ -63,7 +66,7 @@ export default function SplitCard({ split, currentUserId, currency, language, on
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -78,7 +81,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FFF9E6',
+    backgroundColor: theme.colors.primary + '22',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: theme.spacing.sm,
@@ -88,7 +91,7 @@ const styles = StyleSheet.create({
   date: { fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 },
   tags: { flexDirection: 'row', gap: 4, marginTop: 4 },
   tag: {
-    backgroundColor: '#F0F4FF',
+    backgroundColor: theme.colors.accent + '22',
     borderRadius: theme.borderRadius.sm,
     paddingHorizontal: 4,
     paddingVertical: 1,

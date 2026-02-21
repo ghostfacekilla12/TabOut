@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import type { Theme } from '../utils/theme';
 import type { Friend } from '../types';
 
 interface Props {
@@ -13,8 +14,10 @@ interface Props {
 
 export default function FriendCard({ friend, onPress }: Props) {
   const { t } = useTranslation();
+  const { theme } = useTheme();
   const isPositive = friend.balance >= 0;
   const hasBalance = friend.balance !== 0;
+  const styles = createStyles(theme);
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
@@ -50,7 +53,7 @@ export default function FriendCard({ friend, onPress }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',

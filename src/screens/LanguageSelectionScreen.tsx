@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import i18n, { saveLanguage } from '../services/i18n';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import type { Theme } from '../utils/theme';
 
 export const LANGUAGE_SELECTED_KEY = '@tabout_language_selected';
 
@@ -12,6 +13,9 @@ interface Props {
 }
 
 export default function LanguageSelectionScreen({ onSelected }: Props) {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
+
   const selectLanguage = async (lang: 'en' | 'ar') => {
     try {
       await i18n.changeLanguage(lang);
@@ -26,7 +30,7 @@ export default function LanguageSelectionScreen({ onSelected }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.logo}>🌍 TabOut</Text>
+        <Text style={styles.logo}>🌍 Tab</Text>
         <Text style={styles.title}>Choose Your Language</Text>
         <Text style={styles.subtitle}>اختر لغتك</Text>
       </View>
@@ -58,7 +62,7 @@ export default function LanguageSelectionScreen({ onSelected }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

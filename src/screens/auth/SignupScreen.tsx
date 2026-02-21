@@ -14,7 +14,8 @@ import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { useAuth } from '../../services/AuthContext';
-import { theme } from '../../utils/theme';
+import { useTheme } from '../../contexts/ThemeContext';
+import type { Theme } from '../../utils/theme';
 import type { AuthStackParamList } from '../../navigation/AppNavigator';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Signup'>;
@@ -22,12 +23,15 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'Signup'>;
 export default function SignupScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const { signUpWithEmail } = useAuth();
+  const { theme } = useTheme();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const styles = createStyles(theme);
 
   const validate = () => {
     if (!name.trim()) {
@@ -81,6 +85,7 @@ export default function SignupScreen({ navigation }: Props) {
             placeholder={t('auth.name_placeholder')}
             autoCapitalize="words"
             autoComplete="name"
+            placeholderTextColor={theme.colors.textSecondary}
           />
 
           <Text style={styles.label}>{t('auth.email')}</Text>
@@ -92,6 +97,7 @@ export default function SignupScreen({ navigation }: Props) {
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="email"
+            placeholderTextColor={theme.colors.textSecondary}
           />
 
           <Text style={styles.label}>{t('auth.password')}</Text>
@@ -101,6 +107,7 @@ export default function SignupScreen({ navigation }: Props) {
             onChangeText={setPassword}
             placeholder={t('auth.password_placeholder')}
             secureTextEntry
+            placeholderTextColor={theme.colors.textSecondary}
           />
 
           <Text style={styles.label}>{t('auth.confirm_password')}</Text>
@@ -110,6 +117,7 @@ export default function SignupScreen({ navigation }: Props) {
             onChangeText={setConfirmPassword}
             placeholder={t('auth.password_placeholder')}
             secureTextEntry
+            placeholderTextColor={theme.colors.textSecondary}
           />
 
           <TouchableOpacity
@@ -134,7 +142,7 @@ export default function SignupScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.accent,
@@ -151,12 +159,12 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 36,
     fontWeight: '800',
-    color: theme.colors.primary,
+    color: '#FFFFFF',
     letterSpacing: 2,
   },
   subtitle: {
     fontSize: 18,
-    color: '#FFFFFF',
+    color: 'rgba(255,255,255,0.85)',
     marginTop: theme.spacing.xs,
   },
   form: {
@@ -180,7 +188,7 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.sm,
     fontSize: 16,
     color: theme.colors.text,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: theme.colors.background,
   },
   button: {
     backgroundColor: theme.colors.primary,

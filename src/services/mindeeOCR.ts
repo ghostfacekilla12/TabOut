@@ -1,16 +1,6 @@
 import { analyzeReceiptWithOCRSpace } from './ocrSpaceAPI';
-
-export interface ReceiptData {
-  merchantName: string;
-  total: number;
-  taxAmount: number;
-  serviceCharge: number;
-  date: string;
-  items: Array<{
-    description: string;
-    amount: number;
-  }>;
-}
+export type { ReceiptData } from './ocrSpaceAPI';
+import type { ReceiptData } from './ocrSpaceAPI';
 
 /**
  * Analyzes a receipt image using the Mindee API and returns structured receipt data.
@@ -52,12 +42,19 @@ export const analyzeReceiptWithMindee = async (imageUri: string): Promise<Receip
         amount: li.total_amount ?? 0,
       })).filter((li: { description: string; amount: number }) => li.description && li.amount > 0);
 
+      const total = pred.total_amount?.value ?? 0;
+      const taxAmount = pred.taxes?.[0]?.value ?? 0;
+
       return {
         merchantName: pred.supplier_name?.value ?? 'Unknown Merchant',
-        total: pred.total_amount?.value ?? 0,
-        taxAmount: pred.taxes?.[0]?.value ?? 0,
+        total,
+        taxAmount,
         serviceCharge: 0,
         date: pred.date?.value ?? new Date().toISOString().split('T')[0],
+        subtotal: total,
+        discount: 0,
+        deliveryFee: 0,
+        serviceFee: 0,
         items: rawItems,
       };
     } catch (err) {
@@ -66,14 +63,5 @@ export const analyzeReceiptWithMindee = async (imageUri: string): Promise<Receip
   }
 
   // Fallback: delegate to OCR.space
-  const ocrResult = await analyzeReceiptWithOCRSpace(imageUri);
-  return {
-    merchantName: ocrResult.merchantName,
-    total: ocrResult.total,
-    taxAmount: ocrResult.taxAmount,
-    serviceCharge: ocrResult.serviceCharge,
-    date: ocrResult.date,
-    items: ocrResult.items,
-  };
+  return analyzeReceiptWithOCRSpace(imageUri);
 };
-

@@ -1,5 +1,12 @@
 {
-  "app_name": "تاب آوت",
+  "app_name": "تاب",
+  "currencies": {
+    "EGP": "ج.م",
+    "SAR": "ر.س",
+    "AED": "د.إ",
+    "USD": "$",
+    "EUR": "€"
+  },
   "common": {
     "loading": "جارٍ التحميل...",
     "error": "حدث خطأ ما",
@@ -152,6 +159,10 @@
     "email_or_phone_placeholder": "أدخل البريد الإلكتروني أو رقم الهاتف",
     "friend_added": "تمت إضافة الصديق بنجاح",
     "friend_add_error": "فشل إضافة الصديق",
+    "import_contacts": "استيراد من جهات الاتصال",
+    "add_by_email": "إضافة عبر البريد / الهاتف",
+    "contact_permission_denied": "تم رفض إذن جهات الاتصال",
+    "contact_imported": "تمت إضافة جهة الاتصال بنجاح",
     "pending_splits": "في الانتظار",
     "all_settled": "تمت تسوية الحسابات!",
     "total_balance": "الرصيد الإجمالي"

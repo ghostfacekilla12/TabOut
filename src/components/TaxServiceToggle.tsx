@@ -2,7 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet, Switch, TextInput, TouchableOpacity } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import type { Theme } from '../utils/theme';
 
 interface Props {
   hasService: boolean;
@@ -36,6 +37,8 @@ export default function TaxServiceToggle({
   onChangeDeliveryFee,
 }: Props) {
   const { t } = useTranslation();
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
 
   const serviceAmount = hasService ? subtotal * servicePercentage / 100 : 0;
   const taxAmount = hasTax ? subtotal * taxPercentage / 100 : 0;
@@ -118,6 +121,7 @@ export default function TaxServiceToggle({
               onChangeText={onChangeDeliveryFee}
               keyboardType="decimal-pad"
               placeholder="0.00"
+              placeholderTextColor={theme.colors.textSecondary}
             />
           )}
           <Switch
@@ -132,7 +136,7 @@ export default function TaxServiceToggle({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.md,
@@ -168,7 +172,7 @@ const styles = StyleSheet.create({
   },
   pctBtnActive: {
     borderColor: theme.colors.primary,
-    backgroundColor: '#FFF9E6',
+    backgroundColor: theme.colors.primary + '22',
   },
   pctBtnText: { fontSize: 12, color: theme.colors.textSecondary },
   pctBtnTextActive: { color: theme.colors.primary, fontWeight: '600' },
@@ -181,5 +185,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     width: 80,
     color: theme.colors.text,
+    backgroundColor: theme.colors.background,
   },
 });

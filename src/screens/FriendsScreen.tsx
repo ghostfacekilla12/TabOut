@@ -14,11 +14,13 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
+import * as Contacts from 'expo-contacts';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { useAuth } from '../services/AuthContext';
 import { supabase } from '../services/supabase';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import type { Theme } from '../utils/theme';
 import FriendCard from '../components/FriendCard';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { Friend } from '../types';
@@ -28,6 +30,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'MainTabs'>;
 export default function FriendsScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { theme } = useTheme();
 
   const [friends, setFriends] = useState<Friend[]>([]);
   const [search, setSearch] = useState('');
@@ -36,6 +39,8 @@ export default function FriendsScreen({ navigation }: Props) {
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [addInput, setAddInput] = useState('');
   const [addLoading, setAddLoading] = useState(false);
+
+  const styles = createStyles(theme);
 
   const fetchFriends = useCallback(async () => {
     if (!user) return;
@@ -108,6 +113,61 @@ export default function FriendsScreen({ navigation }: Props) {
     }
   };
 
+  const handleImportContact = async () => {
+    try {
+      const { status } = await Contacts.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(t('common.error'), t('friends.contact_permission_denied'));
+        return;
+      }
+
+      const result = await Contacts.presentContactPickerAsync();
+      if (!result) return;
+
+      const contact = result as Contacts.Contact;
+      const name = contact.name ?? '';
+      const email = contact.emails?.[0]?.email ?? '';
+      const phone = contact.phoneNumbers?.[0]?.number ?? '';
+
+      if (!email && !phone) {
+        Alert.alert(t('common.error'), t('friends.friend_add_error'));
+        return;
+      }
+
+      if (!user) return;
+
+      const query = email
+        ? `email.eq.${email}`
+        : `phone.eq.${phone.replace(/\s+/g, '')}`;
+
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('id')
+        .or(query)
+        .single();
+
+      if (!profileData) {
+        Alert.alert(
+          t('common.error'),
+          `${name} ${t('friends.friend_add_error')}`
+        );
+        return;
+      }
+
+      await supabase.from('friendships').insert([
+        { user_id: user.id, friend_id: profileData.id },
+        { user_id: profileData.id, friend_id: user.id },
+      ]);
+
+      Alert.alert(t('common.ok'), t('friends.contact_imported'));
+      setAddModalVisible(false);
+      fetchFriends();
+    } catch (err) {
+      console.error('Contact import error:', err);
+      Alert.alert(t('common.error'), t('friends.friend_add_error'));
+    }
+  };
+
   const filtered = friends.filter(
     (f) =>
       f.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -164,6 +224,18 @@ export default function FriendsScreen({ navigation }: Props) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>{t('friends.add_friend')}</Text>
+
+            <TouchableOpacity style={styles.importContactBtn} onPress={handleImportContact}>
+              <Ionicons name="contacts-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+              <Text style={styles.importContactText}>{t('friends.import_contacts')}</Text>
+            </TouchableOpacity>
+
+            <View style={styles.orDivider}>
+              <View style={styles.orLine} />
+              <Text style={styles.orText}>{t('common.or')}</Text>
+              <View style={styles.orLine} />
+            </View>
+
             <Text style={styles.modalLabel}>{t('friends.email_or_phone')}</Text>
             <TextInput
               style={styles.modalInput}
@@ -172,6 +244,7 @@ export default function FriendsScreen({ navigation }: Props) {
               placeholder={t('friends.email_or_phone_placeholder')}
               autoCapitalize="none"
               keyboardType="email-address"
+              placeholderTextColor={theme.colors.textSecondary}
             />
             <View style={styles.modalButtons}>
               <TouchableOpacity
@@ -197,7 +270,7 @@ export default function FriendsScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   header: {
     backgroundColor: theme.colors.accent,
@@ -256,6 +329,24 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
   },
   modalTitle: { fontSize: 20, fontWeight: '700', color: theme.colors.text, marginBottom: theme.spacing.md },
+  importContactBtn: {
+    backgroundColor: theme.colors.success,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  importContactText: { color: '#FFFFFF', fontWeight: '700', fontSize: 16 },
+  orDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  orLine: { flex: 1, height: 1, backgroundColor: theme.colors.border },
+  orText: { paddingHorizontal: theme.spacing.sm, color: theme.colors.textSecondary, fontSize: 14 },
   modalLabel: { fontSize: 14, fontWeight: '500', color: theme.colors.text, marginBottom: theme.spacing.xs },
   modalInput: {
     borderWidth: 1,
@@ -265,6 +356,7 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.sm,
     fontSize: 16,
     color: theme.colors.text,
+    backgroundColor: theme.colors.background,
   },
   modalButtons: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: theme.spacing.lg, gap: theme.spacing.sm },
   cancelBtn: {
