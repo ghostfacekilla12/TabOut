@@ -33,6 +33,7 @@ export interface GroupReceipt {
   id: string;
   group_id: string;
   uploaded_by: string;
+  paid_by?: string;
   image_url?: string;
   merchant_name: string;
   total_amount: number;
@@ -194,6 +195,7 @@ export const loadGroupReceipt = async (receiptId: string): Promise<GroupReceipt 
       id,
       group_id,
       uploaded_by,
+      paid_by,
       image_url,
       merchant_name,
       total_amount,
@@ -217,6 +219,7 @@ export const loadGroupReceipt = async (receiptId: string): Promise<GroupReceipt 
     id: data.id,
     group_id: data.group_id,
     uploaded_by: data.uploaded_by,
+    paid_by: data.paid_by ?? undefined,
     image_url: data.image_url,
     merchant_name: data.merchant_name,
     total_amount: data.total_amount,
@@ -254,13 +257,15 @@ export const createGroupReceiptFromOCR = async (
   uploadedBy: string,
   merchantName: string,
   totalAmount: number,
-  items: Array<{ name: string; price: number; quantity?: number }>
+  items: Array<{ name: string; price: number; quantity?: number }>,
+  paidBy?: string
 ): Promise<GroupReceipt> => {
   const { data: receipt, error: receiptError } = await supabase
     .from('group_receipts')
     .insert({
       group_id: groupId,
       uploaded_by: uploadedBy,
+      paid_by: paidBy ?? uploadedBy,
       merchant_name: merchantName,
       total_amount: totalAmount,
       status: 'splitting',

@@ -9,10 +9,10 @@ import {
   FlatList,
   TouchableOpacity,
   RefreshControl,
-  SafeAreaView,
   StatusBar,
   Switch,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import BalanceDisplay from '../components/BalanceDisplay';
 import SplitCard from '../components/SplitCard';
@@ -157,6 +157,45 @@ export default function HomeScreen({ navigation }: Props) {
               currency={currency}
               language={language}
             />
+            {/* Quick actions */}
+            <View style={dynStyles.quickActions}>
+              <TouchableOpacity
+                style={[dynStyles.quickAction, { backgroundColor: theme.colors.card }]}
+                onPress={() => navigation.navigate('ReceiptScanner')}
+              >
+                <Ionicons name="scan" size={24} color={theme.colors.primary} />
+                <Text style={[dynStyles.quickActionText, { color: theme.colors.text }]}>
+                  {t('scan.title')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[dynStyles.quickAction, { backgroundColor: theme.colors.card }]}
+                onPress={() => navigation.navigate('CashDebt')}
+              >
+                <Ionicons name="cash-outline" size={24} color={theme.colors.primary} />
+                <Text style={[dynStyles.quickActionText, { color: theme.colors.text }]}>
+                  {t('debt.cash_debt')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[dynStyles.quickAction, { backgroundColor: theme.colors.card }]}
+                onPress={() => navigation.navigate('QuickSplit')}
+              >
+                <Ionicons name="receipt-outline" size={24} color={theme.colors.primary} />
+                <Text style={[dynStyles.quickActionText, { color: theme.colors.text }]}>
+                  {t('debt.quick_split')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[dynStyles.quickAction, { backgroundColor: theme.colors.card }]}
+                onPress={() => navigation.navigate('GroupsList')}
+              >
+                <Ionicons name="people-outline" size={24} color={theme.colors.primary} />
+                <Text style={[dynStyles.quickActionText, { color: theme.colors.text }]}>
+                  {t('groups.my_groups')}
+                </Text>
+              </TouchableOpacity>
+            </View>
             <View style={dynStyles.sectionHeader}>
               <Text style={dynStyles.sectionTitle}>{t('home.recent_splits')}</Text>
               <TouchableOpacity
@@ -273,6 +312,25 @@ const makeStyles = (theme: Theme) =>
       color: theme.colors.primary,
       fontWeight: '600',
       fontSize: 14,
+    },
+    quickActions: {
+      flexDirection: 'row',
+      paddingHorizontal: theme.spacing.lg,
+      paddingVertical: theme.spacing.sm,
+      gap: theme.spacing.sm,
+    },
+    quickAction: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: theme.borderRadius.md,
+      paddingVertical: 12,
+      gap: 6,
+    },
+    quickActionText: {
+      fontSize: 11,
+      fontWeight: '600',
+      textAlign: 'center',
     },
     listContent: {
       paddingBottom: theme.spacing.xl,

@@ -5,10 +5,10 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   Alert,
   ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import * as Contacts from 'expo-contacts';
@@ -92,7 +92,7 @@ export default function CreateGroupScreen({ navigation }: Props) {
           .from('profiles')
           .select('id')
           .or(query)
-          .single();
+          .maybeSingle();
 
         if (existingProfile?.id) {
           memberUserIds.push(existingProfile.id);
