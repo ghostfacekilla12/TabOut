@@ -73,6 +73,33 @@ export default function GroupReceiptSplitScreen({ navigation, route }: Props) {
     };
   }, [receiptId, fetchReceipt]);
 
+  const handleQuantityChange = async (item: GroupReceiptItem, change: number) => {
+    const newQty = Math.max(1, Math.min(99, item.quantity + change));
+    if (newQty === item.quantity) return;
+
+    // Optimistic update
+    setReceipt((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        items: prev.items.map((i) =>
+          i.id === item.id ? { ...i, quantity: newQty } : i
+        ),
+      };
+    });
+
+    try {
+      await supabase
+        .from('group_receipt_items')
+        .update({ quantity: newQty })
+        .eq('id', item.id);
+    } catch (error) {
+      console.error('Error updating quantity:', error);
+      Alert.alert(t('common.error'), t('common.error'));
+      fetchReceipt(); // Revert on error
+    }
+  };
+
   const handleToggleClaim = async (item: GroupReceiptItem) => {
     if (!user) return;
     const isClaimed = item.claimed_by.includes(user.id);
@@ -192,6 +219,21 @@ export default function GroupReceiptSplitScreen({ navigation, route }: Props) {
               {t('groups.shared_item')} ({claimCount} people)
             </Text>
           )}
+        </View>
+        <View style={styles.quantityRow}>
+          <TouchableOpacity
+            style={[styles.quantityBtn, { backgroundColor: theme.colors.surface }]}
+            onPress={() => handleQuantityChange(item, -1)}
+          >
+            <Ionicons name="remove" size={16} color={theme.colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.quantityText, { color: theme.colors.text }]}>x{item.quantity}</Text>
+          <TouchableOpacity
+            style={[styles.quantityBtn, { backgroundColor: theme.colors.surface }]}
+            onPress={() => handleQuantityChange(item, 1)}
+          >
+            <Ionicons name="add" size={16} color={theme.colors.text} />
+          </TouchableOpacity>
         </View>
         <View style={styles.itemPriceContainer}>
           <Text style={[styles.itemPrice, { color: theme.colors.text }]}>
@@ -373,6 +415,25 @@ const styles = StyleSheet.create({
   itemInfo: { flex: 1 },
   itemName: { fontSize: 15, fontWeight: '500' },
   sharedText: { fontSize: 12, marginTop: 2 },
+  quantityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginRight: 12,
+  },
+  quantityBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quantityText: {
+    fontSize: 14,
+    fontWeight: '600',
+    minWidth: 30,
+    textAlign: 'center',
+  },
   itemPriceContainer: { alignItems: 'flex-end' },
   itemPrice: { fontSize: 15, fontWeight: '600' },
   myShareText: { fontSize: 12, marginTop: 2 },

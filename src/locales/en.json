@@ -184,7 +184,9 @@
     "no_contacts_match": "No contacts match your search.",
     "pending_splits": "pending",
     "all_settled": "All settled up!",
-    "total_balance": "Total Balance"
+    "total_balance": "Total Balance",
+    "not_on_tab": "Not on Tab Yet",
+    "not_on_tab_desc": "{{name}} is not on Tab yet. Invite them!"
   },
   "friend_detail": {
     "splits": "Splits",
