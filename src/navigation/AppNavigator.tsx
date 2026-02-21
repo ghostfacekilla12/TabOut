@@ -19,7 +19,10 @@ import SplitDetailScreen from '../screens/SplitDetailScreen';
 import SplitBreakdownScreen from '../screens/SplitBreakdownScreen';
 import FriendDetailScreen from '../screens/FriendDetailScreen';
 import ReceiptScannerScreen from '../screens/ReceiptScannerScreen';
+import OutstandingPaymentsScreen from '../screens/OutstandingPaymentsScreen';
+import SplitResultsScreen from '../screens/SplitResultsScreen';
 import type { ReceiptData } from '../services/mindeeOCR';
+import type { SplitResultsRouteParams } from '../screens/SplitResultsScreen';
 
 export type AuthStackParamList = {
   Login: undefined;
@@ -40,6 +43,8 @@ export type RootStackParamList = {
   SplitDetail: { splitId: string };
   SplitBreakdown: { splitId: string };
   FriendDetail: { friendId: string };
+  OutstandingPayments: undefined;
+  SplitResults: SplitResultsRouteParams;
 };
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -127,6 +132,16 @@ const MainNavigator = () => (
     <RootStack.Screen
       name="FriendDetail"
       component={FriendDetailScreen}
+      options={{ headerShown: false }}
+    />
+    <RootStack.Screen
+      name="OutstandingPayments"
+      component={OutstandingPaymentsScreen}
+      options={{ headerShown: false }}
+    />
+    <RootStack.Screen
+      name="SplitResults"
+      component={SplitResultsScreen}
       options={{ headerShown: false }}
     />
   </RootStack.Navigator>

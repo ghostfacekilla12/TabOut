@@ -149,7 +149,8 @@
     "scan_receipt_error": "Failed to scan receipt. Please try again.",
     "scanning": "Scanning...",
     "you": "You",
-    "select_payer": "Select who paid"
+    "select_payer": "Select who paid",
+    "preview_split": "Preview Split"
   },
   "friends": {
     "title": "Friends",
@@ -218,5 +219,32 @@
     "new_split_body": "{{name}} added you to a split: {{description}}",
     "payment_received_title": "Payment Received",
     "payment_received_body": "{{name}} paid you {{amount}}"
+  },
+  "outstanding": {
+    "title": "Outstanding Payments",
+    "you_are_owed": "You Are Owed",
+    "you_owe": "You Owe",
+    "nothing_owed": "No one owes you anything",
+    "nothing_owing": "You don't owe anyone",
+    "total_owed_to_you": "Total owed to you",
+    "total_you_owe": "Total you owe",
+    "mark_paid_title": "Mark as Paid",
+    "mark_paid_confirm": "Mark {{amount}} from {{name}} as paid?",
+    "mark_paid_error": "Failed to mark as paid",
+    "marked_paid": "Marked as paid!",
+    "share_receipt": "Share Receipt",
+    "share_unavailable": "Sharing is not available on this device",
+    "share_error": "Could not share receipt",
+    "view_details": "View Details",
+    "view_all": "View All",
+    "payment_history": "Payment History",
+    "no_history": "No payment history yet",
+    "paid_on": "Paid on"
+  },
+  "split_results": {
+    "title": "Split Summary",
+    "paid_by": "Paid by",
+    "charges": "Charges",
+    "discount": "Discount"
   }
 }
