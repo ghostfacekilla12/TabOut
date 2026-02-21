@@ -1,5 +1,21 @@
+import * as ImageManipulator from 'expo-image-manipulator';
+
 const OCR_SPACE_API_KEY = 'K87153949488957';
 const OCR_SPACE_URL = 'https://api.ocr.space/parse/image';
+
+const compressImage = async (uri: string): Promise<string> => {
+  try {
+    const manipResult = await ImageManipulator.manipulateAsync(
+      uri,
+      [{ resize: { width: 1200 } }],
+      { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+    );
+    return manipResult.uri;
+  } catch (error) {
+    console.error('Image compression failed:', error);
+    return uri;
+  }
+};
 
 export interface ReceiptItem {
   quantity: number;
@@ -328,12 +344,16 @@ const extractReceiptDataFromText = (text: string): ReceiptData => {
 
 export const analyzeReceiptWithOCRSpace = async (imageUri: string): Promise<ReceiptData> => {
   try {
-    console.log('🔑 Using OCR.space API Key:', OCR_SPACE_API_KEY);
     console.log('📸 Image URI:', imageUri);
+
+    const compressedUri = await compressImage(imageUri);
+    console.log('🖼️ Using compressed URI:', compressedUri);
+
+    console.log('🔑 Using OCR.space API Key:', OCR_SPACE_API_KEY);
 
     const formData = new FormData();
     formData.append('file', {
-      uri: imageUri,
+      uri: compressedUri,
       type: 'image/jpeg',
       name: 'receipt.jpg',
     } as any);

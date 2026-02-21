@@ -176,6 +176,22 @@ export default function NewSplitScreen({ navigation, route }: Props) {
 
   const handleSelectContact = async (contact: { name: string; phone?: string; email?: string }) => {
     try {
+      if (isGuest) {
+        // GUEST MODE: Store friend locally without requiring login
+        const guestFriend: Friend = {
+          id: `guest-${Date.now()}`,
+          name: contact.name,
+          email: contact.phone ?? contact.email,
+          balance: 0,
+          pending_splits_count: 0,
+        };
+        setFriends((prev) => prev.some((f) => f.name === contact.name) ? prev : [...prev, guestFriend]);
+        setSelectedFriends((prev) => prev.some((f) => f.name === contact.name) ? prev : [...prev, guestFriend]);
+        Alert.alert(t('common.success'), t('split.friend_added', { name: contact.name }));
+        setContactPickerVisible(false);
+        return;
+      }
+
       if (!user) {
         Alert.alert(t('common.error'), t('split.must_be_logged_in'));
         return;

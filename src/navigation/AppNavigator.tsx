@@ -21,6 +21,10 @@ import FriendDetailScreen from '../screens/FriendDetailScreen';
 import ReceiptScannerScreen from '../screens/ReceiptScannerScreen';
 import OutstandingPaymentsScreen from '../screens/OutstandingPaymentsScreen';
 import SplitResultsScreen from '../screens/SplitResultsScreen';
+import GroupsListScreen from '../screens/GroupsListScreen';
+import CreateGroupScreen from '../screens/CreateGroupScreen';
+import GroupChatScreen from '../screens/GroupChatScreen';
+import GroupReceiptSplitScreen from '../screens/GroupReceiptSplitScreen';
 import type { ReceiptData } from '../services/mindeeOCR';
 import type { SplitResultsRouteParams } from '../screens/SplitResultsScreen';
 
@@ -33,6 +37,7 @@ export type MainTabParamList = {
   Home: undefined;
   Scan: undefined;
   Friends: undefined;
+  Groups: undefined;
   Stats: undefined;
 };
 
@@ -45,6 +50,10 @@ export type RootStackParamList = {
   FriendDetail: { friendId: string };
   OutstandingPayments: undefined;
   SplitResults: SplitResultsRouteParams;
+  GroupsList: undefined;
+  CreateGroup: undefined;
+  GroupChat: { groupId: string; groupName: string };
+  GroupReceiptSplit: { groupId: string; receiptId: string };
 };
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -77,6 +86,7 @@ const MainTabNavigator = () => {
           if (route.name === 'Home') iconName = focused ? 'home' : 'home-outline';
           else if (route.name === 'Scan') iconName = focused ? 'scan' : 'scan-outline';
           else if (route.name === 'Friends') iconName = focused ? 'people' : 'people-outline';
+          else if (route.name === 'Groups') iconName = focused ? 'people-circle' : 'people-circle-outline';
           else if (route.name === 'Stats') iconName = focused ? 'bar-chart' : 'bar-chart-outline';
           return <Ionicons name={iconName} size={size} color={color} />;
         },
@@ -96,6 +106,11 @@ const MainTabNavigator = () => {
         name="Friends"
         component={FriendsScreen}
         options={{ tabBarLabel: t('friends.title') }}
+      />
+      <MainTab.Screen
+        name="Groups"
+        component={GroupsListScreen}
+        options={{ tabBarLabel: t('groups.my_groups') }}
       />
       <MainTab.Screen
         name="Stats"
@@ -142,6 +157,26 @@ const MainNavigator = () => (
     <RootStack.Screen
       name="SplitResults"
       component={SplitResultsScreen}
+      options={{ headerShown: false }}
+    />
+    <RootStack.Screen
+      name="GroupsList"
+      component={GroupsListScreen}
+      options={{ headerShown: false }}
+    />
+    <RootStack.Screen
+      name="CreateGroup"
+      component={CreateGroupScreen}
+      options={{ headerShown: false, presentation: 'modal' }}
+    />
+    <RootStack.Screen
+      name="GroupChat"
+      component={GroupChatScreen}
+      options={{ headerShown: false }}
+    />
+    <RootStack.Screen
+      name="GroupReceiptSplit"
+      component={GroupReceiptSplitScreen}
       options={{ headerShown: false }}
     />
   </RootStack.Navigator>
