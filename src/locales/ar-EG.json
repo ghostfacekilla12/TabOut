@@ -28,7 +28,9 @@
     "close": "قفّل",
     "optional": "اختياري",
     "required": "مطلوب",
-    "or": "أو"
+    "or": "أو",
+    "permission_required": "محتاج إذن",
+    "success": "تمام"
   },
   "auth": {
     "login": "ادخل",
@@ -149,7 +151,17 @@
     "scanning": "بيمسح...",
     "you": "انت",
     "select_payer": "اختار مين دفع",
-    "preview_split": "اشوف التقسيم"
+    "preview_split": "اشوف التقسيم",
+    "add_friends": "ضيف أصحاب",
+    "add_friends_to_assign_items": "ضيف أصحاب عشان تخصص لهم الأصناف",
+    "import_from_contacts": "استورد من جهات الاتصال",
+    "no_friends_yet": "مفيش أصحاب لسه",
+    "import_contacts_to_start": "استورد من جهات الاتصال أو ضيف أصحاب تبدأ التقسيم!",
+    "friend_added": "{{name}} اتضاف كصاحب!",
+    "friend_add_error": "الصاحب مش اتضاف. حاول تاني.",
+    "contacts_permission_message": "التطبيق محتاج إذن للوصول لجهات اتصالك عشان يستورد الأصحاب.",
+    "contacts_permission_error": "فشل الوصول لجهات الاتصال.",
+    "must_be_logged_in": "لازم تسجل دخول عشان تضيف أصحاب."
   },
   "friends": {
     "title": "الأصحاب",

@@ -28,7 +28,9 @@
     "close": "إغلاق",
     "optional": "اختياري",
     "required": "مطلوب",
-    "or": "أو"
+    "or": "أو",
+    "permission_required": "إذن مطلوب",
+    "success": "نجاح"
   },
   "auth": {
     "login": "تسجيل الدخول",
@@ -150,7 +152,17 @@
     "scanning": "جاري المسح...",
     "you": "أنت",
     "select_payer": "اختر من دفع",
-    "preview_split": "معاينة التقسيم"
+    "preview_split": "معاينة التقسيم",
+    "add_friends": "إضافة أصدقاء",
+    "add_friends_to_assign_items": "أضف أصدقاء لتخصيص الأصناف لهم",
+    "import_from_contacts": "استيراد من جهات الاتصال",
+    "no_friends_yet": "لا يوجد أصدقاء بعد",
+    "import_contacts_to_start": "استورد من جهات الاتصال أو أضف أصدقاء لبدء التقسيم!",
+    "friend_added": "تمت إضافة {{name}} كصديق!",
+    "friend_add_error": "فشل إضافة الصديق. حاول مرة أخرى.",
+    "contacts_permission_message": "يحتاج التطبيق إلى الوصول إلى جهات اتصالك لاستيراد الأصدقاء.",
+    "contacts_permission_error": "فشل الوصول إلى جهات الاتصال.",
+    "must_be_logged_in": "يجب تسجيل الدخول لإضافة أصدقاء."
   },
   "friends": {
     "title": "الأصدقاء",
