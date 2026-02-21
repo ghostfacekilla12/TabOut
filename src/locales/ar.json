@@ -184,7 +184,9 @@
     "no_contacts_match": "لا توجد جهات اتصال تطابق بحثك.",
     "pending_splits": "في الانتظار",
     "all_settled": "تمت تسوية الحسابات!",
-    "total_balance": "الرصيد الإجمالي"
+    "total_balance": "الرصيد الإجمالي",
+    "not_on_tab": "ليس على التاب بعد",
+    "not_on_tab_desc": "{{name}} ليس على التاب بعد. ادعوه!"
   },
   "friend_detail": {
     "splits": "المصاريف المشتركة",

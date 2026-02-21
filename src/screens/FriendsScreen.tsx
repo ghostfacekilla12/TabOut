@@ -150,8 +150,8 @@ export default function FriendsScreen({ navigation }: Props) {
 
       if (!profileData) {
         Alert.alert(
-          t('common.error'),
-          `${name} ${t('friends.friend_add_error')}`
+          t('friends.not_on_tab'),
+          t('friends.not_on_tab_desc', { name })
         );
         return;
       }
