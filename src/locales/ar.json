@@ -166,6 +166,10 @@
     "add_by_email": "إضافة عبر البريد / الهاتف",
     "contact_permission_denied": "تم رفض إذن جهات الاتصال",
     "contact_imported": "تمت إضافة جهة الاتصال بنجاح",
+    "select_contact": "اختر جهة اتصال",
+    "search_contacts": "البحث في جهات الاتصال...",
+    "no_contacts_found": "لا توجد جهات اتصال.",
+    "no_contacts_match": "لا توجد جهات اتصال تطابق بحثك.",
     "pending_splits": "في الانتظار",
     "all_settled": "تمت تسوية الحسابات!",
     "total_balance": "الرصيد الإجمالي"

@@ -22,6 +22,110 @@ export interface ReceiptData {
 }
 
 /**
+ * Parse Talabat/delivery-style receipts where items and prices are on separate lines.
+ * Talabat OCR outputs a two-column layout: all item/label names first, then all prices
+ * at the bottom. E.g.:
+ *   1 x Rib Eye Steak Platter
+ *   1 x Molten Cake
+ *   Subtotal
+ *   Delivery fee
+ *   Total
+ *   EGP 450.00
+ *   EGP 100.00
+ *   EGP 750.00
+ *   EGP 31.99
+ *   EGP 794.98
+ */
+const parseSplitColumnReceipt = (
+  lines: string[]
+): Pick<ReceiptData, 'items' | 'subtotal' | 'discount' | 'deliveryFee' | 'serviceFee' | 'total'> | null => {
+  const itemRe = /^(\d+)\s*[xX×]\s+(.+)$/i;
+  const egpLineRe = /^EGP\s+([\d,.]+)$/i;
+
+  // Find the subtotal line to split items from totals
+  const subtotalIdx = lines.findIndex((l) => /^subtotal$/i.test(l.trim()));
+  if (subtotalIdx < 0) return null;
+
+  const itemSection = lines.slice(0, subtotalIdx);
+
+  // Extract items with descriptions from item section
+  const rawItems: Array<{ quantity: number; name: string; description: string }> = [];
+  for (let i = 0; i < itemSection.length; i++) {
+    const line = itemSection[i].trim();
+    const m = line.match(itemRe);
+    if (!m) continue;
+
+    const quantity = parseInt(m[1], 10);
+    const name = m[2].trim();
+
+    // Collect description lines until next item line or end of section
+    let description = '';
+    let j = i + 1;
+    while (j < itemSection.length) {
+      const next = itemSection[j].trim();
+      if (!next || itemRe.test(next)) break;
+      description += (description ? ' ' : '') + next;
+      j++;
+    }
+
+    rawItems.push({ quantity, name, description: description.trim() });
+  }
+
+  if (rawItems.length === 0) return null;
+
+  // Extract all standalone EGP price lines from the entire text
+  const allPrices: number[] = [];
+  for (const line of lines) {
+    const m = line.trim().match(egpLineRe);
+    if (m) {
+      allPrices.push(parseFloat(m[1].replace(',', '')));
+    }
+  }
+
+  // The first rawItems.length prices are item prices; the rest are totals values
+  const itemPrices = allPrices.slice(0, rawItems.length);
+  const totalsPrices = allPrices.slice(rawItems.length);
+
+  // Map totals prices to their labels (in order they appear after subtotalIdx)
+  const totalsLabelLines = lines.slice(subtotalIdx).filter((l) =>
+    /^(subtotal|discount|delivery|service|total)/i.test(l.trim())
+  );
+
+  let subtotal = 0;
+  let discount = 0;
+  let deliveryFee = 0;
+  let serviceFee = 0;
+  let total = 0;
+  let foundSubtotalLabel = false;
+
+  totalsLabelLines.forEach((label, i) => {
+    if (i >= totalsPrices.length) return;
+    const l = label.trim().toLowerCase();
+    if (/subtotal/.test(l)) { subtotal = totalsPrices[i]; foundSubtotalLabel = true; }
+    else if (/discount/.test(l)) discount = totalsPrices[i];
+    else if (/delivery/.test(l)) deliveryFee = totalsPrices[i];
+    else if (/service/.test(l)) serviceFee = totalsPrices[i];
+    else if (/^total/.test(l)) total = totalsPrices[i];
+  });
+
+  const items: ReceiptItem[] = rawItems.map((item, i) => ({
+    quantity: item.quantity,
+    name: item.name,
+    description: item.description || undefined,
+    price: itemPrices[i] || 0,
+  }));
+
+  if (!foundSubtotalLabel && items.length > 0) {
+    subtotal = items.reduce((s, item) => s + item.price * item.quantity, 0);
+  }
+  if (total === 0) {
+    total = subtotal - discount + deliveryFee + serviceFee;
+  }
+
+  return { items, subtotal, discount, deliveryFee, serviceFee, total };
+};
+
+/**
  * Parse Talabat/delivery-style receipts that have itemized lists.
  * Pattern: "[qty] x [item name]  [currency] [price]"
  */
@@ -116,8 +220,9 @@ const extractReceiptDataFromText = (text: string): ReceiptData => {
 
   const lines = text.split('\n').filter((line) => line.trim());
 
-  // Try delivery/Talabat-style parsing first
-  const deliveryResult = parseDeliveryReceipt(lines);
+  // Try split-column Talabat-style parsing first (items and prices on separate lines),
+  // then fall back to same-line parsing.
+  const deliveryResult = parseSplitColumnReceipt(lines) ?? parseDeliveryReceipt(lines);
 
   // Patterns
   const priceRe = /(?:^|[\s:x×*])\$?\s*(\d{1,6}(?:[,.]\d{1,3})*(?:\.\d{1,2})?)\s*(?:EGP|LE|L\.E\.|SAR|AED|USD|EUR|جنيه|ج\.م|﷼)?(?:\s|$)/i;

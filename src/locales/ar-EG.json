@@ -165,6 +165,10 @@
     "add_by_email": "ضيف بالإيميل / الموبايل",
     "contact_permission_denied": "مش مسموح بالوصول لجهات الاتصال",
     "contact_imported": "جهة الاتصال اتضافت!",
+    "select_contact": "اختار جهة اتصال",
+    "search_contacts": "دور في جهات الاتصال...",
+    "no_contacts_found": "مفيش جهات اتصال.",
+    "no_contacts_match": "مفيش جهات اتصال تطابق بحثك.",
     "pending_splits": "في الانتظار",
     "all_settled": "كلهم خلصوا!",
     "total_balance": "الرصيد الكلي"

@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
-import * as Contacts from 'expo-contacts';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { useAuth } from '../services/AuthContext';
@@ -22,6 +21,7 @@ import { supabase } from '../services/supabase';
 import { useTheme } from '../contexts/ThemeContext';
 import type { Theme } from '../utils/theme';
 import FriendCard from '../components/FriendCard';
+import { ContactPickerModal } from '../components/ContactPickerModal';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { Friend } from '../types';
 
@@ -39,6 +39,7 @@ export default function FriendsScreen({ navigation }: Props) {
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [addInput, setAddInput] = useState('');
   const [addLoading, setAddLoading] = useState(false);
+  const [contactPickerVisible, setContactPickerVisible] = useState(false);
 
   const styles = createStyles(theme);
 
@@ -122,32 +123,24 @@ export default function FriendsScreen({ navigation }: Props) {
     }
   };
 
-  const handleImportContact = async () => {
+  const handleImportContact = () => {
+    setContactPickerVisible(true);
+  };
+
+  const handleContactSelected = async (contact: { name: string; email?: string; phone?: string }) => {
+    const { name, email, phone } = contact;
+
+    if (!email && !phone) {
+      Alert.alert(t('common.error'), t('friends.friend_add_error'));
+      return;
+    }
+
+    if (!user) return;
+
     try {
-      const { status } = await Contacts.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(t('common.error'), t('friends.contact_permission_denied'));
-        return;
-      }
-
-      const result = await Contacts.presentContactPickerAsync();
-      if (!result) return;
-
-      const contact = result as Contacts.Contact;
-      const name = contact.name ?? '';
-      const email = contact.emails?.[0]?.email ?? '';
-      const phone = contact.phoneNumbers?.[0]?.number ?? '';
-
-      if (!email && !phone) {
-        Alert.alert(t('common.error'), t('friends.friend_add_error'));
-        return;
-      }
-
-      if (!user) return;
-
       const query = email
         ? `email.eq.${email}`
-        : `phone.eq.${phone.replace(/\s+/g, '')}`;
+        : `phone.eq.${(phone ?? '').replace(/\s+/g, '')}`;
 
       const { data: profileData } = await supabase
         .from('profiles')
@@ -235,7 +228,7 @@ export default function FriendsScreen({ navigation }: Props) {
             <Text style={styles.modalTitle}>{t('friends.add_friend')}</Text>
 
             <TouchableOpacity style={styles.importContactBtn} onPress={handleImportContact}>
-              <Ionicons name="contacts-outline" size={20} color="#FFFFFF" style={styles.importContactIcon} />
+              <Ionicons name="people-outline" size={20} color="#FFFFFF" style={styles.importContactIcon} />
               <Text style={styles.importContactText}>{t('friends.import_contacts')}</Text>
             </TouchableOpacity>
 
@@ -275,6 +268,12 @@ export default function FriendsScreen({ navigation }: Props) {
           </View>
         </View>
       </Modal>
+
+      <ContactPickerModal
+        visible={contactPickerVisible}
+        onClose={() => setContactPickerVisible(false)}
+        onSelectContact={handleContactSelected}
+      />
     </SafeAreaView>
   );
 }
