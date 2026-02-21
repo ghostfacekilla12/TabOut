@@ -1,6 +1,6 @@
 import { analyzeReceiptWithOCRSpace } from './ocrSpaceAPI';
 export type { ReceiptData } from './ocrSpaceAPI';
-import type { ReceiptData } from './ocrSpaceAPI';
+import type { ReceiptData, ReceiptItem } from './ocrSpaceAPI';
 
 /**
  * Analyzes a receipt image using the Mindee API and returns structured receipt data.
@@ -35,12 +35,13 @@ export const analyzeReceiptWithMindee = async (imageUri: string): Promise<Receip
       const pred = result?.document?.inference?.prediction;
       if (!pred) throw new Error('Invalid Mindee response');
 
-      const rawItems: Array<{ description: string; amount: number }> = (
+      const rawItems: ReceiptItem[] = (
         pred.line_items ?? []
       ).map((li: { description?: string; total_amount?: number }) => ({
-        description: li.description ?? '',
-        amount: li.total_amount ?? 0,
-      })).filter((li: { description: string; amount: number }) => li.description && li.amount > 0);
+        quantity: 1,
+        name: li.description ?? '',
+        price: li.total_amount ?? 0,
+      })).filter((li: ReceiptItem) => li.name && li.price > 0);
 
       const total = pred.total_amount?.value ?? 0;
       const taxAmount = pred.taxes?.[0]?.value ?? 0;

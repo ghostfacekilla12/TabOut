@@ -4,7 +4,7 @@ const OCR_SPACE_URL = 'https://api.ocr.space/parse/image';
 export interface ReceiptItem {
   quantity: number;
   name: string;
-  description: string;
+  description?: string;
   price: number;
 }
 
@@ -18,10 +18,7 @@ export interface ReceiptData {
   discount: number;
   deliveryFee: number;
   serviceFee: number;
-  items: Array<{
-    description: string;
-    amount: number;
-  }>;
+  items: ReceiptItem[];
 }
 
 /**
@@ -35,7 +32,7 @@ const parseDeliveryReceipt = (
   const itemRe = /^(\d+)\s*[xX×]\s+(.+?)\s+(?:EGP|SAR|AED|USD|EUR|\$|€)\s*([\d,]+\.?\d*)\s*$/i;
   const amountRe = /(?:EGP|SAR|AED|USD|EUR|\$|€)\s*([\d,]+\.?\d*)/i;
 
-  const items: ReceiptData['items'] = [];
+  const items: ReceiptItem[] = [];
   let subtotal = 0;
   let discount = 0;
   let deliveryFee = 0;
@@ -72,9 +69,7 @@ const parseDeliveryReceipt = (
       }
       if (description) i = j - 1;
 
-      // Add as a single entry; include quantity in description if > 1
-      const itemDescription = qty > 1 ? `${name} (x${qty})` : name;
-      items.push({ description: itemDescription, amount: price });
+      items.push({ quantity: qty, name, description: description || undefined, price });
 
       i++;
       continue;
@@ -105,7 +100,7 @@ const parseDeliveryReceipt = (
 
   // Calculate subtotal from items if not found
   if (subtotal === 0 && items.length > 0) {
-    subtotal = items.reduce((s, item) => s + item.amount, 0);
+    subtotal = items.reduce((s, item) => s + item.price, 0);
   }
 
   // Calculate total if not found
@@ -168,7 +163,7 @@ const extractReceiptDataFromText = (text: string): ReceiptData => {
 
   // Fallback: standard receipt parsing
   let total = 0;
-  const items: Array<{ description: string; amount: number }> = [];
+  const items: ReceiptItem[] = [];
 
   for (const line of lines) {
     const trimmed = line.trim();
@@ -191,14 +186,14 @@ const extractReceiptDataFromText = (text: string): ReceiptData => {
         .replace(/\s+/g, ' ')
         .trim();
       if (description && amount > 0 && amount < 100_000) {
-        items.push({ description, amount });
+        items.push({ quantity: 1, name: description, price: amount });
       }
     }
   }
 
   // Fallback: if no explicit total, sum items
   if (total === 0 && items.length > 0) {
-    total = items.reduce((s, i) => s + i.amount, 0);
+    total = items.reduce((s, i) => s + i.price, 0);
   }
 
   // Final fallback: largest amount in text
