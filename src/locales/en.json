@@ -28,7 +28,9 @@
     "close": "Close",
     "optional": "Optional",
     "required": "Required",
-    "or": "or"
+    "or": "or",
+    "permission_required": "Permission Required",
+    "success": "Success"
   },
   "auth": {
     "login": "Log In",
@@ -150,7 +152,17 @@
     "scanning": "Scanning...",
     "you": "You",
     "select_payer": "Select who paid",
-    "preview_split": "Preview Split"
+    "preview_split": "Preview Split",
+    "add_friends": "Add Friends",
+    "add_friends_to_assign_items": "Add friends to assign items to them",
+    "import_from_contacts": "Import from Contacts",
+    "no_friends_yet": "No friends yet",
+    "import_contacts_to_start": "Import from contacts or add friends to start splitting!",
+    "friend_added": "{{name}} added as friend!",
+    "friend_add_error": "Failed to add friend. Please try again.",
+    "contacts_permission_message": "Tab needs access to your contacts to import friends.",
+    "contacts_permission_error": "Failed to access contacts.",
+    "must_be_logged_in": "You must be logged in to add friends."
   },
   "friends": {
     "title": "Friends",

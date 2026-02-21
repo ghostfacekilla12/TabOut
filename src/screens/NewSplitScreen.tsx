@@ -29,6 +29,8 @@ import type { BillItem } from '../utils/billCalculator';
 import { scanReceiptFromCamera, scanReceiptFromGallery } from '../services/ocrService';
 import { analyzeReceiptWithMindee } from '../services/mindeeOCR';
 import TaxServiceToggle from '../components/TaxServiceToggle';
+import { ContactPickerModal } from '../components/ContactPickerModal';
+import * as Contacts from 'expo-contacts';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { Friend, Item } from '../types';
 
@@ -75,6 +77,7 @@ export default function NewSplitScreen({ navigation, route }: Props) {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [activePreset, setActivePreset] = useState<keyof typeof PRESETS | null>(null);
   const [assignItemId, setAssignItemId] = useState<string | null>(null);
+  const [contactPickerVisible, setContactPickerVisible] = useState(false);
 
   const styles = createStyles(theme);
 
@@ -150,6 +153,75 @@ export default function NewSplitScreen({ navigation, route }: Props) {
         ? prev.filter((f) => f.id !== friend.id)
         : [...prev, friend]
     );
+  };
+
+  const handleImportFromContacts = async () => {
+    try {
+      const { status } = await Contacts.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          t('common.permission_required'),
+          t('split.contacts_permission_message'),
+          [{ text: t('common.ok') }]
+        );
+        return;
+      }
+      setFriendPickerVisible(false);
+      setContactPickerVisible(true);
+    } catch (error) {
+      console.error('Error requesting contacts permission:', error);
+      Alert.alert(t('common.error'), t('split.contacts_permission_error'));
+    }
+  };
+
+  const handleSelectContact = async (contact: { name: string; phone?: string; email?: string }) => {
+    try {
+      if (!user) {
+        Alert.alert(t('common.error'), t('split.must_be_logged_in'));
+        return;
+      }
+
+      const { email, phone, name } = contact;
+      if (!email && !phone) {
+        Alert.alert(t('common.error'), t('split.friend_add_error'));
+        return;
+      }
+
+      const query = email
+        ? `email.eq.${email}`
+        : `phone.eq.${(phone ?? '').replace(/\s+/g, '')}`;
+
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('id, name, email')
+        .or(query)
+        .single();
+
+      if (!profileData) {
+        Alert.alert(t('common.error'), `${name} ${t('split.friend_add_error')}`);
+        return;
+      }
+
+      await supabase.from('friendships').insert([
+        { user_id: user.id, friend_id: profileData.id },
+        { user_id: profileData.id, friend_id: user.id },
+      ]);
+
+      const friendObj: Friend = {
+        id: profileData.id,
+        name: profileData.name ?? name,
+        email: profileData.email,
+        balance: 0,
+        pending_splits_count: 0,
+      };
+
+      setFriends((prev) => prev.some((f) => f.id === profileData.id) ? prev : [...prev, friendObj]);
+      setSelectedFriends((prev) => prev.some((f) => f.id === profileData.id) ? prev : [...prev, friendObj]);
+      Alert.alert(t('common.success'), t('split.friend_added', { name: profileData.name ?? name }));
+    } catch (error) {
+      console.error('Error adding friend from contact:', error);
+      Alert.alert(t('common.error'), t('split.friend_add_error'));
+    }
   };
 
   const addItem = () => {
@@ -541,8 +613,46 @@ export default function NewSplitScreen({ navigation, route }: Props) {
             />
           </View>
         ) : (
-          <View style={styles.section}>
-            <Text style={styles.label}>{t('split.items')}</Text>
+          <>
+            {/* Friend Selection - REQUIRED for itemized splits */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.label}>{t('split.split_with')}</Text>
+                <TouchableOpacity
+                  style={styles.addFriendBtn}
+                  onPress={() => { if (!friendsLoaded) loadFriends(); setFriendPickerVisible(true); }}
+                >
+                  <Ionicons name="person-add-outline" size={18} color={theme.colors.primary} />
+                  <Text style={styles.addFriendBtnText}>{t('split.add_friends')}</Text>
+                </TouchableOpacity>
+              </View>
+
+              {selectedFriends.length > 0 && (
+                <View style={styles.friendChipsContainer}>
+                  {selectedFriends.map((friend) => (
+                    <View key={friend.id} style={styles.friendChip}>
+                      <Text style={styles.friendChipText}>{friend.name}</Text>
+                      <TouchableOpacity
+                        onPress={() => toggleFriend(friend)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons name="close-circle" size={18} color={theme.colors.textSecondary} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {selectedFriends.length === 0 && (
+                <View style={styles.emptyFriendsMessage}>
+                  <Ionicons name="information-circle-outline" size={20} color={theme.colors.textSecondary} />
+                  <Text style={styles.emptyFriendsText}>{t('split.add_friends_to_assign_items')}</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.label}>{t('split.items')}</Text>
             {items.map((item) => {
               const allParticipants = [
                 { id: user?.id ?? '', name: t('split.you') ?? 'You' },
@@ -570,26 +680,24 @@ export default function NewSplitScreen({ navigation, route }: Props) {
                   </View>
                   {item.description && <Text style={styles.itemDescription}>{item.description}</Text>}
                   {/* Assignment chips */}
-                  {allParticipants.length > 1 && (
-                    <View style={styles.assignRow}>
-                      <TouchableOpacity
-                        style={styles.assignLabel}
-                        onPress={() => setAssignItemId(assignItemId === item.id ? null : item.id)}
-                      >
-                        <Ionicons name="people-outline" size={14} color={theme.colors.primary} />
-                        <Text style={styles.assignLabelText}>{t('split.assigned_to')}</Text>
-                      </TouchableOpacity>
-                      {allParticipants
-                        .filter((p) => item.assignedTo.includes(p.id))
-                        .map((p) => (
-                          <View key={p.id} style={styles.assignChip}>
-                            <Text style={styles.assignChipText}>{p.name}</Text>
-                          </View>
-                        ))}
-                    </View>
-                  )}
+                  <View style={styles.assignRow}>
+                    <TouchableOpacity
+                      style={styles.assignLabel}
+                      onPress={() => setAssignItemId(assignItemId === item.id ? null : item.id)}
+                    >
+                      <Ionicons name="people-outline" size={14} color={theme.colors.primary} />
+                      <Text style={styles.assignLabelText}>{t('split.assigned_to')}</Text>
+                    </TouchableOpacity>
+                    {allParticipants
+                      .filter((p) => item.assignedTo.includes(p.id))
+                      .map((p) => (
+                        <View key={p.id} style={styles.assignChip}>
+                          <Text style={styles.assignChipText}>{p.name}</Text>
+                        </View>
+                      ))}
+                  </View>
                   {/* Expanded picker */}
-                  {assignItemId === item.id && allParticipants.length > 1 && (
+                  {assignItemId === item.id && (
                     <View style={styles.assignPicker}>
                       {allParticipants.map((p) => {
                         const selected = item.assignedTo.includes(p.id);
@@ -615,7 +723,8 @@ export default function NewSplitScreen({ navigation, route }: Props) {
               <Ionicons name="add" size={18} color={theme.colors.primary} />
               <Text style={styles.addItemBtnText}>{t('split.add_item')}</Text>
             </TouchableOpacity>
-          </View>
+            </View>
+          </>
         )}
 
         <TaxServiceToggle
@@ -735,6 +844,13 @@ export default function NewSplitScreen({ navigation, route }: Props) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>{t('split.select_friends')}</Text>
+            <TouchableOpacity
+              style={styles.importContactsBtn}
+              onPress={handleImportFromContacts}
+            >
+              <Ionicons name="people-outline" size={20} color={theme.colors.primary} />
+              <Text style={styles.importContactsBtnText}>{t('split.import_from_contacts')}</Text>
+            </TouchableOpacity>
             <FlatList
               data={friends}
               keyExtractor={(item) => item.id}
@@ -822,6 +938,12 @@ export default function NewSplitScreen({ navigation, route }: Props) {
           </View>
         </View>
       </Modal>
+
+      <ContactPickerModal
+        visible={contactPickerVisible}
+        onClose={() => setContactPickerVisible(false)}
+        onSelectContact={handleSelectContact}
+      />
     </SafeAreaView>
   );
 }
@@ -1113,5 +1235,81 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   assignPickerTextSelected: {
     color: theme.colors.primary,
     fontWeight: '600',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  addFriendBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+  },
+  addFriendBtnText: {
+    marginLeft: 6,
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.primary,
+  },
+  friendChipsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  friendChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  friendChipText: {
+    fontSize: 14,
+    color: theme.colors.text,
+    fontWeight: '500',
+  },
+  emptyFriendsMessage: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    marginTop: 8,
+    gap: 8,
+  },
+  emptyFriendsText: {
+    flex: 1,
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  importContactsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 14,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    marginBottom: 12,
+    gap: 8,
+    borderWidth: 1.5,
+    borderColor: theme.colors.primary,
+  },
+  importContactsBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.colors.primary,
   },
 });
