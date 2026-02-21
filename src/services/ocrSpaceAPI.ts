@@ -55,13 +55,12 @@ const parseDeliveryReceipt = (
       const name = itemMatch[2].trim();
       const price = parseFloat(itemMatch[3].replace(',', ''));
 
-      // Look ahead for description lines (indented or short non-price lines)
+      // Look ahead for a description line (non-price, non-item line immediately after)
       let description = '';
       let j = i + 1;
       while (j < lines.length) {
         const nextLine = lines[j].trim();
         if (!nextLine) { j++; continue; }
-        // Stop if next line is another item or a total/summary line
         if (
           itemRe.test(nextLine) ||
           /\b(subtotal|total|discount|delivery|service)\b/i.test(nextLine) ||
@@ -73,15 +72,10 @@ const parseDeliveryReceipt = (
       }
       if (description) i = j - 1;
 
-      // If quantity > 1, repeat items or just record as one entry with combined price
-      for (let q = 0; q < qty; q++) {
-        items.push({ description: qty > 1 ? `${name} (x${qty})` : name, amount: price });
-        if (q > 0) break; // Only add once but keep full amount
-      }
-      if (qty > 1) {
-        // Replace the last item with total price
-        items[items.length - 1] = { description: `${name} (x${qty})`, amount: price };
-      }
+      // Add as a single entry; include quantity in description if > 1
+      const itemDescription = qty > 1 ? `${name} (x${qty})` : name;
+      items.push({ description: itemDescription, amount: price });
+
       i++;
       continue;
     }

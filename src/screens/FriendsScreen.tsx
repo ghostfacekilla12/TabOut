@@ -82,14 +82,23 @@ export default function FriendsScreen({ navigation }: Props) {
   }, [fetchFriends]);
 
   const handleAddFriend = async () => {
-    if (!addInput.trim() || !user) return;
+    const input = addInput.trim();
+    if (!input || !user) return;
+
+    // Basic validation: must look like an email or phone number
+    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input);
+    const isPhone = /^\+?[\d\s\-()]{7,15}$/.test(input);
+    if (!isEmail && !isPhone) {
+      Alert.alert(t('common.error'), t('auth.invalid_email'));
+      return;
+    }
 
     setAddLoading(true);
     try {
       const { data: profileData } = await supabase
         .from('profiles')
         .select('id')
-        .or(`email.eq.${addInput.trim()},phone.eq.${addInput.trim()}`)
+        .or(`email.eq.${input},phone.eq.${input}`)
         .single();
 
       if (!profileData) {
@@ -226,7 +235,7 @@ export default function FriendsScreen({ navigation }: Props) {
             <Text style={styles.modalTitle}>{t('friends.add_friend')}</Text>
 
             <TouchableOpacity style={styles.importContactBtn} onPress={handleImportContact}>
-              <Ionicons name="contacts-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+              <Ionicons name="contacts-outline" size={20} color="#FFFFFF" style={styles.importContactIcon} />
               <Text style={styles.importContactText}>{t('friends.import_contacts')}</Text>
             </TouchableOpacity>
 
@@ -339,6 +348,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     justifyContent: 'center',
     marginBottom: theme.spacing.md,
   },
+  importContactIcon: { marginRight: 8 },
   importContactText: { color: '#FFFFFF', fontWeight: '700', fontSize: 16 },
   orDivider: {
     flexDirection: 'row',
