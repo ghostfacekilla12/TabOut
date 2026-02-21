@@ -146,7 +146,10 @@
     "choose_from_gallery": "اختار من الألبوم",
     "receipt_scanned": "تم مسح الفاتورة!",
     "scan_receipt_error": "فشل مسح الفاتورة. حاول تاني.",
-    "scanning": "بيمسح..."
+    "scanning": "بيمسح...",
+    "you": "انت",
+    "select_payer": "اختار مين دفع",
+    "preview_split": "اشوف التقسيم"
   },
   "friends": {
     "title": "الأصحاب",
@@ -215,5 +218,32 @@
     "new_split_body": "{{name}} ضافك في حساب: {{description}}",
     "payment_received_title": "استلمت فلوس",
     "payment_received_body": "{{name}} دفع ليك {{amount}}"
+  },
+  "outstanding": {
+    "title": "الحسابات المعلقة",
+    "you_are_owed": "فلوس عندهم ليك",
+    "you_owe": "فلوس عليك",
+    "nothing_owed": "مفيش حد مدين ليك",
+    "nothing_owing": "مش مدين لحد",
+    "total_owed_to_you": "إجمالي اللي عليهم ليك",
+    "total_you_owe": "إجمالي اللي عليك",
+    "mark_paid_title": "خلّصه",
+    "mark_paid_confirm": "تحديد {{amount}} من {{name}} كمتدفعة؟",
+    "mark_paid_error": "فشل تحديد الدفع",
+    "marked_paid": "اتحدد كمتدفع!",
+    "share_receipt": "ابعت الفاتورة",
+    "share_unavailable": "المشاركة مش متاحة",
+    "share_error": "مقدرتش تبعت الفاتورة",
+    "view_details": "شوف التفاصيل",
+    "view_all": "شوف الكل",
+    "payment_history": "سجل المدفوعات",
+    "no_history": "مفيش سجل لسه",
+    "paid_on": "اتدفع في"
+  },
+  "split_results": {
+    "title": "ملخص التقسيم",
+    "paid_by": "دفع",
+    "charges": "الرسوم",
+    "discount": "خصم"
   }
 }

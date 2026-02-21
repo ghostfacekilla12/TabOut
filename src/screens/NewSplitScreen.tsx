@@ -24,6 +24,8 @@ import type { GuestSplit } from '../services/guestStorage';
 import { useTheme } from '../contexts/ThemeContext';
 import type { Theme } from '../utils/theme';
 import { calculateEqualSplit, calculateSplit } from '../utils/splitCalculator';
+import { calculateBillSplit } from '../utils/billCalculator';
+import type { BillItem } from '../utils/billCalculator';
 import { scanReceiptFromCamera, scanReceiptFromGallery } from '../services/ocrService';
 import { analyzeReceiptWithMindee } from '../services/mindeeOCR';
 import TaxServiceToggle from '../components/TaxServiceToggle';
@@ -37,6 +39,7 @@ interface NewItem {
   name: string;
   price: string;
   ordered_by: string;
+  assignedTo: string[];
 }
 
 const PRESETS = {
@@ -70,6 +73,7 @@ export default function NewSplitScreen({ navigation, route }: Props) {
   const [isScanning, setIsScanning] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [activePreset, setActivePreset] = useState<keyof typeof PRESETS | null>(null);
+  const [assignItemId, setAssignItemId] = useState<string | null>(null);
 
   const styles = createStyles(theme);
 
@@ -95,6 +99,7 @@ export default function NewSplitScreen({ navigation, route }: Props) {
           name: item.description,
           price: item.amount.toFixed(2),
           ordered_by: user?.id ?? '',
+          assignedTo: [user?.id ?? ''],
         }))
       );
     }
@@ -148,7 +153,7 @@ export default function NewSplitScreen({ navigation, route }: Props) {
   const addItem = () => {
     setItems((prev) => [
       ...prev,
-      { id: Date.now().toString(), name: '', price: '', ordered_by: user?.id ?? '' },
+      { id: Date.now().toString(), name: '', price: '', ordered_by: user?.id ?? '', assignedTo: [user?.id ?? ''] },
     ]);
   };
 
@@ -158,6 +163,20 @@ export default function NewSplitScreen({ navigation, route }: Props) {
 
   const removeItem = (id: string) => {
     setItems((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const toggleItemAssignee = (itemId: string, personId: string) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== itemId) return item;
+        const assigned = item.assignedTo.includes(personId)
+          ? item.assignedTo.filter((id) => id !== personId)
+          : [...item.assignedTo, personId];
+        // ordered_by is the first assignee; keep current if no one assigned
+        const ordered_by = assigned.length > 0 ? assigned[0] : (user?.id ?? '');
+        return { ...item, assignedTo: assigned, ordered_by };
+      })
+    );
   };
 
   const validate = () => {
@@ -357,6 +376,63 @@ export default function NewSplitScreen({ navigation, route }: Props) {
     }
   };
 
+  const handlePreviewSplit = () => {
+    if (!description.trim()) {
+      Alert.alert(t('common.error'), t('split.description_required'));
+      return;
+    }
+    if (splitType === 'itemized' && items.length === 0) return;
+
+    const allParticipants = [user?.id ?? '', ...selectedFriends.map((f) => f.id)].filter(Boolean);
+    if (allParticipants.length < 2) {
+      Alert.alert(t('common.error'), t('split.no_participants'));
+      return;
+    }
+
+    const billItems: BillItem[] = items.map((i) => ({
+      name: i.name,
+      price: parseFloat(i.price) || 0,
+      quantity: 1,
+      assignedTo: i.assignedTo.length > 0 ? i.assignedTo : [user?.id ?? ''],
+    }));
+
+    const results = calculateBillSplit({
+      items: billItems,
+      servicePercent: hasService ? servicePercentage : 0,
+      taxPercent: hasTax ? taxPercentage : 0,
+      deliveryFee: hasDeliveryFee ? parseFloat(deliveryFee) || 0 : 0,
+      discount: 0,
+      paidBy: paidBy,
+      participants: allParticipants,
+    });
+
+    const participantNames: Record<string, string> = {
+      [user?.id ?? '']: t('split.you') ?? 'You',
+    };
+    for (const f of selectedFriends) {
+      participantNames[f.id] = f.name;
+    }
+
+    const paidByName =
+      paidBy === user?.id
+        ? (t('split.you') ?? 'You')
+        : friends.find((f) => f.id === paidBy)?.name ?? t('split.paid_by');
+
+    navigation.navigate('SplitResults', {
+      results,
+      participantNames,
+      paidById: paidBy,
+      paidByName: paidByName ?? '',
+      items: billItems,
+      servicePercent: hasService ? servicePercentage : 0,
+      taxPercent: hasTax ? taxPercentage : 0,
+      deliveryFee: hasDeliveryFee ? parseFloat(deliveryFee) || 0 : 0,
+      discount: 0,
+      merchant: description.trim(),
+      date: new Date().toLocaleDateString(),
+    });
+  };
+
   const itemSubtotal = items.reduce((s, i) => s + (parseFloat(i.price) || 0), 0);
   const deliveryAmount = hasDeliveryFee ? parseFloat(deliveryFee) || 0 : 0;
 
@@ -465,26 +541,73 @@ export default function NewSplitScreen({ navigation, route }: Props) {
         ) : (
           <View style={styles.section}>
             <Text style={styles.label}>{t('split.items')}</Text>
-            {items.map((item) => (
-              <View key={item.id} style={styles.itemRow}>
-                <TextInput
-                  style={[styles.input, styles.itemNameInput]}
-                  value={item.name}
-                  onChangeText={(v) => updateItem(item.id, 'name', v)}
-                  placeholder={t('split.item_name')}
-                />
-                <TextInput
-                  style={[styles.input, styles.itemPriceInput]}
-                  value={item.price}
-                  onChangeText={(v) => updateItem(item.id, 'price', v)}
-                  placeholder={t('split.item_price')}
-                  keyboardType="decimal-pad"
-                />
-                <TouchableOpacity onPress={() => removeItem(item.id)}>
-                  <Ionicons name="remove-circle" size={24} color={theme.colors.warning} />
-                </TouchableOpacity>
-              </View>
-            ))}
+            {items.map((item) => {
+              const allParticipants = [
+                { id: user?.id ?? '', name: t('split.you') ?? 'You' },
+                ...selectedFriends,
+              ];
+              return (
+                <View key={item.id}>
+                  <View style={styles.itemRow}>
+                    <TextInput
+                      style={[styles.input, styles.itemNameInput]}
+                      value={item.name}
+                      onChangeText={(v) => updateItem(item.id, 'name', v)}
+                      placeholder={t('split.item_name')}
+                    />
+                    <TextInput
+                      style={[styles.input, styles.itemPriceInput]}
+                      value={item.price}
+                      onChangeText={(v) => updateItem(item.id, 'price', v)}
+                      placeholder={t('split.item_price')}
+                      keyboardType="decimal-pad"
+                    />
+                    <TouchableOpacity onPress={() => removeItem(item.id)}>
+                      <Ionicons name="remove-circle" size={24} color={theme.colors.warning} />
+                    </TouchableOpacity>
+                  </View>
+                  {/* Assignment chips */}
+                  {allParticipants.length > 1 && (
+                    <View style={styles.assignRow}>
+                      <TouchableOpacity
+                        style={styles.assignLabel}
+                        onPress={() => setAssignItemId(assignItemId === item.id ? null : item.id)}
+                      >
+                        <Ionicons name="people-outline" size={14} color={theme.colors.primary} />
+                        <Text style={styles.assignLabelText}>{t('split.assigned_to')}</Text>
+                      </TouchableOpacity>
+                      {allParticipants
+                        .filter((p) => item.assignedTo.includes(p.id))
+                        .map((p) => (
+                          <View key={p.id} style={styles.assignChip}>
+                            <Text style={styles.assignChipText}>{p.name}</Text>
+                          </View>
+                        ))}
+                    </View>
+                  )}
+                  {/* Expanded picker */}
+                  {assignItemId === item.id && allParticipants.length > 1 && (
+                    <View style={styles.assignPicker}>
+                      {allParticipants.map((p) => {
+                        const selected = item.assignedTo.includes(p.id);
+                        return (
+                          <TouchableOpacity
+                            key={p.id}
+                            style={[styles.assignPickerItem, selected && styles.assignPickerItemSelected]}
+                            onPress={() => toggleItemAssignee(item.id, p.id)}
+                          >
+                            <Text style={[styles.assignPickerText, selected && styles.assignPickerTextSelected]}>
+                              {p.name}
+                            </Text>
+                            {selected && <Ionicons name="checkmark" size={14} color={theme.colors.primary} />}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )}
+                </View>
+              );
+            })}
             <TouchableOpacity style={styles.addItemBtn} onPress={addItem}>
               <Ionicons name="add" size={18} color={theme.colors.primary} />
               <Text style={styles.addItemBtnText}>{t('split.add_item')}</Text>
@@ -581,6 +704,16 @@ export default function NewSplitScreen({ navigation, route }: Props) {
               <Text style={styles.debtAmount}>{total.toFixed(2)}</Text>
             </Text>
           </View>
+        )}
+
+        {splitType === 'itemized' && items.length > 0 && selectedFriends.length > 0 && (
+          <TouchableOpacity
+            style={[styles.previewBtn]}
+            onPress={handlePreviewSplit}
+          >
+            <Ionicons name="eye-outline" size={18} color={theme.colors.accent} />
+            <Text style={styles.previewBtnText}>{t('split.preview_split')}</Text>
+          </TouchableOpacity>
         )}
 
         <TouchableOpacity
@@ -801,6 +934,19 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   createBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
   disabledBtn: { opacity: 0.6 },
+  previewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 2,
+    borderColor: theme.colors.accent,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+  },
+  previewBtnText: { color: theme.colors.accent, fontSize: 15, fontWeight: '700' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: {
     backgroundColor: theme.colors.surface,
@@ -898,5 +1044,70 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   debtAmount: {
     fontWeight: '700',
     color: theme.colors.accent,
+  },
+  assignRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: theme.spacing.xs,
+    marginTop: -4,
+  },
+  assignLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  assignLabelText: {
+    fontSize: 11,
+    color: theme.colors.primary,
+    fontWeight: '600',
+  },
+  assignChip: {
+    backgroundColor: theme.colors.primary + '22',
+    borderRadius: theme.borderRadius.round,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  assignChipText: {
+    fontSize: 11,
+    color: theme.colors.primary,
+    fontWeight: '600',
+  },
+  assignPicker: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginBottom: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    backgroundColor: theme.colors.background,
+    borderRadius: theme.borderRadius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  assignPickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: theme.borderRadius.round,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+  },
+  assignPickerItemSelected: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primary + '22',
+  },
+  assignPickerText: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    fontWeight: '500',
+  },
+  assignPickerTextSelected: {
+    color: theme.colors.primary,
+    fontWeight: '600',
   },
 });

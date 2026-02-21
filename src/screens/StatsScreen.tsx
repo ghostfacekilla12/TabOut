@@ -13,6 +13,8 @@ import {
   FlatList,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useAuth } from '../services/AuthContext';
 import { supabase } from '../services/supabase';
@@ -21,6 +23,8 @@ import type { Theme } from '../utils/theme';
 import { formatCurrency, getCurrencySymbol, AVAILABLE_CURRENCIES } from '../utils/currencyFormatter';
 import type { Currency } from '../types';
 import i18n, { saveLanguage } from '../services/i18n';
+import { fetchOutstandingDebts } from '../services/debtService';
+import type { RootStackParamList } from '../navigation/AppNavigator';
 
 interface MonthlyData {
   month: string;
@@ -31,6 +35,7 @@ export default function StatsScreen() {
   const { t } = useTranslation();
   const { user, profile, updateProfile } = useAuth();
   const { isDark, toggleTheme, theme } = useTheme();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const [totalSpent, setTotalSpent] = useState(0);
   const [avgSplitSize, setAvgSplitSize] = useState(0);
@@ -39,6 +44,8 @@ export default function StatsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState(i18n.language);
   const [currencyPickerVisible, setCurrencyPickerVisible] = useState(false);
+  const [totalOwed, setTotalOwed] = useState(0);
+  const [totalOwing, setTotalOwing] = useState(0);
 
   const currency = (profile?.currency as Currency) ?? 'EGP';
   const language = profile?.language ?? 'en';
@@ -48,11 +55,17 @@ export default function StatsScreen() {
     if (!user) return;
 
     try {
-      const { data } = await supabase
-        .from('split_participants')
-        .select('total_amount, splits(created_at, description)')
-        .eq('user_id', user.id)
-        .eq('status', 'paid');
+      const [{ data }, debts] = await Promise.all([
+        supabase
+          .from('split_participants')
+          .select('total_amount, splits(created_at, description)')
+          .eq('user_id', user.id)
+          .eq('status', 'paid'),
+        fetchOutstandingDebts(user.id),
+      ]);
+
+      setTotalOwed(debts.owed.reduce((s, d) => s + d.amount, 0));
+      setTotalOwing(debts.owing.reduce((s, d) => s + d.amount, 0));
 
       if (data && data.length > 0) {
         const total = data.reduce((sum, p) => sum + p.total_amount, 0);
@@ -134,6 +147,33 @@ export default function StatsScreen() {
             <Text style={styles.statLabel}>{t('stats.avg_split_size')}</Text>
           </View>
         </View>
+
+        {/* Outstanding Payments Summary */}
+        {(totalOwed > 0 || totalOwing > 0) && (
+          <TouchableOpacity
+            style={styles.outstandingCard}
+            onPress={() => navigation.navigate('OutstandingPayments')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.outstandingTitle}>💰 {t('outstanding.title')}</Text>
+            <View style={styles.outstandingRow}>
+              <View style={styles.outstandingItem}>
+                <Text style={styles.outstandingLabel}>{t('outstanding.you_are_owed')}</Text>
+                <Text style={[styles.outstandingValue, { color: theme.colors.success }]}>
+                  {formatCurrency(totalOwed, currency, language)}
+                </Text>
+              </View>
+              <View style={styles.outstandingDivider} />
+              <View style={styles.outstandingItem}>
+                <Text style={styles.outstandingLabel}>{t('outstanding.you_owe')}</Text>
+                <Text style={[styles.outstandingValue, { color: theme.colors.warning }]}>
+                  {formatCurrency(totalOwing, currency, language)}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.outstandingLink}>{t('outstanding.view_all')} →</Text>
+          </TouchableOpacity>
+        )}
 
         {monthlyData.length > 0 && (
           <View style={styles.card}>
@@ -436,5 +476,39 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: 16,
     color: theme.colors.textSecondary,
     fontWeight: '600',
+  },
+  outstandingCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    borderLeftWidth: 4,
+    borderLeftColor: theme.colors.primary,
+    ...theme.shadows.sm,
+  },
+  outstandingTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: theme.colors.text,
+    marginBottom: theme.spacing.sm,
+  },
+  outstandingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: theme.spacing.sm,
+  },
+  outstandingItem: { alignItems: 'center' },
+  outstandingLabel: { fontSize: 12, color: theme.colors.textSecondary, marginBottom: 2 },
+  outstandingValue: { fontSize: 18, fontWeight: '700' },
+  outstandingDivider: {
+    width: 1,
+    backgroundColor: theme.colors.border,
+    marginHorizontal: theme.spacing.sm,
+  },
+  outstandingLink: {
+    fontSize: 13,
+    color: theme.colors.primary,
+    fontWeight: '600',
+    textAlign: 'right',
   },
 });

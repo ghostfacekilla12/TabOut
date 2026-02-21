@@ -147,7 +147,10 @@
     "choose_from_gallery": "اختيار من المعرض",
     "receipt_scanned": "تم مسح الفاتورة!",
     "scan_receipt_error": "فشل مسح الفاتورة. حاول مرة أخرى.",
-    "scanning": "جاري المسح..."
+    "scanning": "جاري المسح...",
+    "you": "أنت",
+    "select_payer": "اختر من دفع",
+    "preview_split": "معاينة التقسيم"
   },
   "friends": {
     "title": "الأصدقاء",
@@ -216,5 +219,32 @@
     "new_split_body": "أضافك {{name}} إلى مصروف مشترك: {{description}}",
     "payment_received_title": "تم استلام الدفع",
     "payment_received_body": "دفع لك {{name}} {{amount}}"
+  },
+  "outstanding": {
+    "title": "المدفوعات المعلقة",
+    "you_are_owed": "مستحق لك",
+    "you_owe": "مستحق عليك",
+    "nothing_owed": "لا أحد مدين لك",
+    "nothing_owing": "لست مديناً لأحد",
+    "total_owed_to_you": "إجمالي المستحق لك",
+    "total_you_owe": "إجمالي المستحق عليك",
+    "mark_paid_title": "تحديد كمدفوع",
+    "mark_paid_confirm": "تحديد {{amount}} من {{name}} كمدفوع؟",
+    "mark_paid_error": "فشل تحديد الدفع",
+    "marked_paid": "تم التحديد كمدفوع!",
+    "share_receipt": "مشاركة الفاتورة",
+    "share_unavailable": "المشاركة غير متاحة على هذا الجهاز",
+    "share_error": "تعذر مشاركة الفاتورة",
+    "view_details": "عرض التفاصيل",
+    "view_all": "عرض الكل",
+    "payment_history": "سجل المدفوعات",
+    "no_history": "لا يوجد سجل مدفوعات بعد",
+    "paid_on": "تم الدفع في"
+  },
+  "split_results": {
+    "title": "ملخص التقسيم",
+    "paid_by": "دفع بواسطة",
+    "charges": "الرسوم",
+    "discount": "خصم"
   }
 }
