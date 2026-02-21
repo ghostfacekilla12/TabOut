@@ -59,7 +59,9 @@
     "upgrade_required": "Upgrade to Create More",
     "upgrade_message": "You've reached the limit of 3 splits. Sign up to create unlimited splits and sync across devices!",
     "upgrade_benefits": "• Unlimited splits\n• Cloud sync\n• Multi-device access\n• Share with friends",
-    "guest_limit_reached": "Guest Limit Reached"
+    "guest_limit_reached": "Guest Limit Reached",
+    "email_phone_hint": "💡 Add both email and phone for easier friend discovery!",
+    "logout_confirmation": "Are you sure you want to log out?"
   },
   "home": {
     "title": "Tab",

@@ -12,9 +12,10 @@ interface AuthContextValue {
   setGuestMode: (isGuest: boolean) => void;
   signInWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUpWithEmail: (
-    email: string,
+    email: string | undefined,
     password: string,
-    name: string
+    name: string,
+    phone?: string | undefined
   ) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: Error | null }>;
@@ -76,12 +77,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error };
   };
 
-  const signUpWithEmail = async (email: string, password: string, name: string) => {
-    const { data, error } = await supabase.auth.signUp({ email, password });
+  const signUpWithEmail = async (email: string | undefined, password: string, name: string, phone?: string | undefined) => {
+    if (!email && !phone) {
+      return { error: new Error('Either email or phone is required') };
+    }
+    const authEmail = email || `${(phone || '').replace(/\D/g, '')}@tabout.app`;
+    const { data, error } = await supabase.auth.signUp({ email: authEmail, password });
     if (!error && data.user) {
       await supabase.from('profiles').insert({
         id: data.user.id,
-        email,
+        email: email || null,
+        phone: phone || null,
         name,
         language: 'en',
         currency: 'EGP',

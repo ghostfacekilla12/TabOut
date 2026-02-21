@@ -60,7 +60,7 @@ export default function FriendsScreen({ navigation }: Props) {
         const friendList: Friend[] = data
           .filter((d) => d.profiles)
           .map((d) => {
-            const p = d.profiles as { id: string; name: string; email?: string; phone?: string; avatar_url?: string };
+            const p = d.profiles as unknown as { id: string; name: string; email?: string; phone?: string; avatar_url?: string };
             return {
               id: p.id,
               name: p.name,
