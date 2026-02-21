@@ -15,49 +15,81 @@ export interface ReceiptData {
 
 const extractReceiptDataFromText = (text: string): ReceiptData => {
   console.log('📝 Full OCR text:', text);
-  
-  const lines = text.split('\n').filter(line => line.trim());
-  
-  // Find all monetary amounts
-  const amounts: number[] = [];
-  const amountMatches = text.matchAll(/\$?\s*(\d+[,.]?\d*\.?\d{2})/g);
-  for (const match of amountMatches) {
-    const num = parseFloat(match[1].replace(',', ''));
-    if (!isNaN(num) && num > 0) amounts.push(num);
-  }
-  
-  // Total is usually the largest amount
-  const total = amounts.length > 0 ? Math.max(...amounts) : 0;
-  
-  // Merchant name - first non-empty, non-numeric line
+
+  const lines = text.split('\n').filter((line) => line.trim());
+
+  // Patterns
+  const priceRe = /(?:^|[\s:x×*])\$?\s*(\d{1,6}(?:[,.]\d{1,3})*(?:\.\d{1,2})?)\s*(?:EGP|LE|L\.E\.|SAR|AED|USD|EUR|جنيه|ج\.م|﷼)?(?:\s|$)/i;
+  const totalRe = /\b(?:total|grand\s*total|المجموع|اجمالي|إجمالي|مجموع)\b/i;
+  const taxRe = /\b(?:tax|vat|ضريبة|ضرائب|قيمة\s*مضافة)\b/i;
+  const serviceRe = /\b(?:service|tip|gratuity|خدمة)\b/i;
+  const dateRe = /(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4})/;
+  const skipRe = /\b(?:subtotal|receipt|invoice|order|cashier|server|table|date|time|phone|address|thank|welcome|كاشير|فاتورة|طلب)\b/i;
+
+  // Merchant name - first non-trivial, non-price line
   let merchantName = 'Unknown Merchant';
   for (const line of lines.slice(0, 5)) {
-    if (line.length > 2 && !line.match(/^\d+$/) && !line.match(/\d{1,2}\/\d{1,2}/)) {
+    if (line.length > 2 && !/^\d+$/.test(line) && !dateRe.test(line) && !priceRe.test(line)) {
       merchantName = line.trim();
       break;
     }
   }
-  
-  // Find date
-  const dateMatch = text.match(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/);
+
+  const dateMatch = text.match(dateRe);
   const date = dateMatch ? dateMatch[1] : new Date().toISOString().split('T')[0];
-  
-  // Find tax
+
   const taxMatch = text.match(/tax[:\s]*\$?\s*(\d+[,.]?\d*\.?\d{2})/i);
   const taxAmount = taxMatch ? parseFloat(taxMatch[1].replace(',', '')) : 0;
-  
-  // Find service charge/tip
+
   const serviceMatch = text.match(/(?:service|tip|gratuity)[:\s]*\$?\s*(\d+[,.]?\d*\.?\d{2})/i);
   const serviceCharge = serviceMatch ? parseFloat(serviceMatch[1].replace(',', '')) : 0;
-  
-  return {
-    merchantName,
-    total,
-    taxAmount,
-    serviceCharge,
-    date,
-    items: [],
-  };
+
+  let total = 0;
+  const items: Array<{ description: string; amount: number }> = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    if (totalRe.test(trimmed)) {
+      const m = trimmed.match(priceRe);
+      if (m) total = parseFloat(m[1].replace(',', ''));
+      continue;
+    }
+
+    if (taxRe.test(trimmed) || serviceRe.test(trimmed) || skipRe.test(trimmed)) continue;
+
+    const m = trimmed.match(priceRe);
+    if (m) {
+      const amount = parseFloat(m[1].replace(',', ''));
+      const description = trimmed
+        .replace(m[0], '')
+        .replace(/\$|EGP|LE|L\.E\.|SAR|AED|USD|EUR|جنيه|ج\.م|﷼/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (description && amount > 0 && amount < 100_000) {
+        items.push({ description, amount });
+      }
+    }
+  }
+
+  // Fallback: if no explicit total, sum items
+  if (total === 0 && items.length > 0) {
+    total = items.reduce((s, i) => s + i.amount, 0);
+  }
+
+  // Final fallback: largest amount in text
+  if (total === 0) {
+    const amounts: number[] = [];
+    const allMatches = text.matchAll(/\$?\s*(\d+[,.]?\d*\.?\d{2})/g);
+    for (const match of allMatches) {
+      const num = parseFloat(match[1].replace(',', ''));
+      if (!isNaN(num) && num > 0) amounts.push(num);
+    }
+    if (amounts.length > 0) total = Math.max(...amounts);
+  }
+
+  return { merchantName, total, taxAmount, serviceCharge, date, items };
 };
 
 export const analyzeReceiptWithOCRSpace = async (imageUri: string): Promise<ReceiptData> => {

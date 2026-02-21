@@ -11,6 +11,7 @@ import {
   RefreshControl,
   SafeAreaView,
   StatusBar,
+  Switch,
 } from 'react-native';
 
 import BalanceDisplay from '../components/BalanceDisplay';
@@ -20,7 +21,8 @@ import { useAuth } from '../services/AuthContext';
 import { supabase } from '../services/supabase';
 import type { Split, SplitParticipant } from '../types';
 import { formatCurrency } from '../utils/currencyFormatter';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import type { Theme } from '../utils/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MainTabs'>;
 
@@ -31,6 +33,7 @@ interface SplitWithParticipant extends Split {
 export default function HomeScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const { user, profile } = useAuth();
+  const { theme, isDark, toggleTheme } = useTheme();
 
   const [splits, setSplits] = useState<SplitWithParticipant[]>([]);
   const [totalOwed, setTotalOwed] = useState(0);
@@ -97,35 +100,43 @@ export default function HomeScreen({ navigation }: Props) {
     fetchSplits();
   };
 
-  const currency = (profile?.currency as 'EGP' | 'USD' | 'EUR') ?? 'EGP';
+  const currency = (profile?.currency as 'EGP' | 'USD' | 'EUR' | 'SAR' | 'AED') ?? 'EGP';
   const language = profile?.language ?? 'en';
+  const dynStyles = makeStyles(theme);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={dynStyles.container}>
       <StatusBar barStyle="light-content" backgroundColor={theme.colors.accent} />
-      <View style={styles.header}>
+      <View style={dynStyles.header}>
         <View>
-          <Text style={styles.headerTitle}>{t('app_name')}</Text>
-          <Text style={styles.headerTagline}>{t('home.tagline')}</Text>
+          <Text style={dynStyles.headerTitle}>{t('app_name')}</Text>
+          <Text style={dynStyles.headerTagline}>{t('home.tagline')}</Text>
         </View>
-        <View style={styles.headerButtons}>
-          <TouchableOpacity
-            style={styles.headerIconButton}
-            onPress={() => {
-              navigation.navigate('ReceiptScanner');
-            }}
-          >
-            <Ionicons name="camera" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => {
-              navigation.navigate('NewSplit');
-            }}
-            style={styles.newSplitBtn}
-          >
-            <Ionicons name="add" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
+        <View style={dynStyles.headerButtons}>
+            <Switch
+              value={isDark}
+              onValueChange={toggleTheme}
+              trackColor={{ false: 'rgba(255,255,255,0.3)', true: theme.colors.accent }}
+              thumbColor="#FFFFFF"
+              style={{ marginRight: 4 }}
+            />
+            <TouchableOpacity
+              style={dynStyles.headerIconButton}
+              onPress={() => {
+                navigation.navigate('ReceiptScanner');
+              }}
+            >
+              <Ionicons name="camera" size={22} color="#FFFFFF" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                navigation.navigate('NewSplit');
+              }}
+              style={dynStyles.newSplitBtn}
+            >
+              <Ionicons name="add" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
       </View>
 
       <FlatList
@@ -146,16 +157,16 @@ export default function HomeScreen({ navigation }: Props) {
               currency={currency}
               language={language}
             />
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{t('home.recent_splits')}</Text>
+            <View style={dynStyles.sectionHeader}>
+              <Text style={dynStyles.sectionTitle}>{t('home.recent_splits')}</Text>
               <TouchableOpacity
-                style={styles.newSplitButton}
+                style={dynStyles.newSplitButton}
                 onPress={() => {
                   navigation.navigate('NewSplit');
                 }}
               >
                 <Ionicons name="add-circle" size={20} color={theme.colors.primary} />
-                <Text style={styles.newSplitText}>{t('home.new_split')}</Text>
+                <Text style={dynStyles.newSplitText}>{t('home.new_split')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -173,125 +184,126 @@ export default function HomeScreen({ navigation }: Props) {
         )}
         ListEmptyComponent={
           !loading ? (
-            <View style={styles.emptyContainer}>
+            <View style={dynStyles.emptyContainer}>
               <Ionicons name="receipt-outline" size={64} color={theme.colors.border} />
-              <Text style={styles.emptyTitle}>{t('home.no_splits')}</Text>
-              <Text style={styles.emptyDesc}>{t('home.no_splits_desc')}</Text>
+              <Text style={dynStyles.emptyTitle}>{t('home.no_splits')}</Text>
+              <Text style={dynStyles.emptyDesc}>{t('home.no_splits_desc')}</Text>
               <TouchableOpacity
-                style={styles.emptyButton}
+                style={dynStyles.emptyButton}
                 onPress={() => {
                   navigation.navigate('NewSplit');
                 }}
               >
-                <Text style={styles.emptyButtonText}>{t('home.new_split')}</Text>
+                <Text style={dynStyles.emptyButtonText}>{t('home.new_split')}</Text>
               </TouchableOpacity>
             </View>
           ) : null
         }
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={dynStyles.listContent}
       />
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  header: {
-    backgroundColor: theme.colors.accent,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: theme.colors.primary,
-    letterSpacing: 1,
-  },
-  headerTagline: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: 'rgba(255,255,255,0.75)',
-    marginTop: 2,
-  },
-  headerButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-  },
-  headerIconButton: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: theme.borderRadius.round,
-    width: 36,
-    height: 36,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  newSplitBtn: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.borderRadius.round,
-    width: 36,
-    height: 36,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: theme.colors.text,
-  },
-  newSplitButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  newSplitText: {
-    color: theme.colors.primary,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  listContent: {
-    paddingBottom: theme.spacing.xl,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: theme.spacing.xxl,
-    paddingHorizontal: theme.spacing.lg,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: theme.colors.text,
-    marginTop: theme.spacing.md,
-  },
-  emptyDesc: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-    marginTop: theme.spacing.sm,
-  },
-  emptyButton: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.borderRadius.md,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.sm,
-    marginTop: theme.spacing.lg,
-  },
-  emptyButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 16,
-  },
-});
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    header: {
+      backgroundColor: theme.colors.accent,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: theme.spacing.lg,
+      paddingVertical: theme.spacing.md,
+    },
+    headerTitle: {
+      fontSize: 24,
+      fontWeight: '800',
+      color: '#FFFFFF',
+      letterSpacing: 1,
+    },
+    headerTagline: {
+      fontSize: 13,
+      fontWeight: '500',
+      color: 'rgba(255,255,255,0.75)',
+      marginTop: 2,
+    },
+    headerButtons: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing.sm,
+    },
+    headerIconButton: {
+      backgroundColor: 'rgba(255,255,255,0.2)',
+      borderRadius: theme.borderRadius.round,
+      width: 36,
+      height: 36,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    newSplitBtn: {
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.borderRadius.round,
+      width: 36,
+      height: 36,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: theme.spacing.lg,
+      paddingVertical: theme.spacing.md,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: theme.colors.text,
+    },
+    newSplitButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    newSplitText: {
+      color: theme.colors.primary,
+      fontWeight: '600',
+      fontSize: 14,
+    },
+    listContent: {
+      paddingBottom: theme.spacing.xl,
+    },
+    emptyContainer: {
+      alignItems: 'center',
+      paddingVertical: theme.spacing.xxl,
+      paddingHorizontal: theme.spacing.lg,
+    },
+    emptyTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: theme.colors.text,
+      marginTop: theme.spacing.md,
+    },
+    emptyDesc: {
+      fontSize: 14,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+      marginTop: theme.spacing.sm,
+    },
+    emptyButton: {
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.borderRadius.md,
+      paddingHorizontal: theme.spacing.lg,
+      paddingVertical: theme.spacing.sm,
+      marginTop: theme.spacing.lg,
+    },
+    emptyButtonText: {
+      color: '#FFFFFF',
+      fontWeight: '700',
+      fontSize: 16,
+    },
+  });

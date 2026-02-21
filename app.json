@@ -1,15 +1,15 @@
 {
   "expo": {
-    "name": "TabOut",
+    "name": "Tab",
     "slug": "tabout",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#6200EE"
+      "backgroundColor": "#3B82F6"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -18,18 +18,19 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.tabout.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "TabOut needs camera access to scan receipts and extract bill information.",
-        "NSPhotoLibraryUsageDescription": "TabOut needs photo library access to select receipt images."
+        "NSCameraUsageDescription": "Tab needs camera access to scan receipts and extract bill information.",
+        "NSPhotoLibraryUsageDescription": "Tab needs photo library access to select receipt images."
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#6200EE"
+        "backgroundColor": "#3B82F6"
       },
       "package": "com.tabout.app",
       "permissions": [
         "CAMERA",
+        "READ_CONTACTS",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE"
       ]
@@ -42,19 +43,19 @@
         "expo-notifications",
         {
           "icon": "./assets/icon.png",
-          "color": "#6200EE"
+          "color": "#3B82F6"
         }
       ],
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow TabOut to access your camera to scan receipts."
+          "cameraPermission": "Allow Tab to access your camera to scan receipts."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow TabOut to access your photos to select receipt images."
+          "photosPermission": "Allow Tab to access your photos to select receipt images."
         }
       ]
     ],

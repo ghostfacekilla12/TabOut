@@ -92,7 +92,7 @@ export interface SplitCalculationResult {
 
 export type Language = 'en' | 'ar-EG' | 'ar';
 
-export type Currency = 'EGP' | 'USD' | 'EUR';
+export type Currency = 'EGP' | 'USD' | 'EUR' | 'SAR' | 'AED';
 
 export type SplitType = 'equal' | 'itemized' | 'percentage' | 'custom';
 
