@@ -37,7 +37,7 @@ export interface GroupReceipt {
   image_url?: string;
   merchant_name: string;
   total_amount: number;
-  status: 'pending' | 'splitting' | 'settled';
+  status: 'pending' | 'settled' | 'cancelled'; // ✅ FIXED - removed 'splitting'
   created_at: string;
   items: GroupReceiptItem[];
 }
@@ -62,36 +62,73 @@ export interface GroupSettlement {
   created_at: string;
 }
 
+// ============================================
+// Load Groups (with separate queries to avoid recursion)
+// ============================================
 export const loadGroups = async (userId: string): Promise<Group[]> => {
-  const { data, error } = await supabase
-    .from('group_members')
-    .select(`
-      groups (
-        id,
-        name,
-        avatar_url,
-        created_by,
-        created_at
-      )
-    `)
-    .eq('user_id', userId);
+  console.log('📊 [loadGroups] Starting for user:', userId);
 
-  if (error) throw error;
+  try {
+    // Step 1: Get group IDs where user is a member
+    const { data: memberData, error: memberError } = await supabase
+      .from('group_members')
+      .select('group_id')
+      .eq('user_id', userId);
 
-  const groups: Group[] = (data ?? [])
-    .filter((d: any) => d.groups)
-    .map((d: any) => ({
-      id: d.groups.id,
-      name: d.groups.name,
-      avatar_url: d.groups.avatar_url,
-      created_by: d.groups.created_by,
-      created_at: d.groups.created_at,
-      member_count: 0,
-    }));
+    if (memberError) {
+      console.error('❌ Error loading memberships:', memberError);
+      throw memberError;
+    }
 
-  return groups;
+    const groupIds = memberData?.map((m) => m.group_id) || [];
+
+    if (groupIds.length === 0) {
+      console.log('ℹ️ No groups found');
+      return [];
+    }
+
+    // Step 2: Get group details (separate query - no join!)
+    const { data: groupsData, error: groupsError } = await supabase
+      .from('groups')
+      .select('id, name, avatar_url, created_by, created_at')
+      .in('id', groupIds)
+      .order('created_at', { ascending: false });
+
+    if (groupsError) {
+      console.error('❌ Error loading groups:', groupsError);
+      throw groupsError;
+    }
+
+    // Step 3: Get member counts for each group
+    const groupsWithCounts = await Promise.all(
+      (groupsData || []).map(async (group) => {
+        const { count } = await supabase
+          .from('group_members')
+          .select('*', { count: 'exact', head: true })
+          .eq('group_id', group.id);
+
+        return {
+          id: group.id,
+          name: group.name,
+          avatar_url: group.avatar_url,
+          created_by: group.created_by,
+          created_at: group.created_at,
+          member_count: count || 0,
+        };
+      })
+    );
+
+    console.log(`✅ Loaded ${groupsWithCounts.length} groups`);
+    return groupsWithCounts;
+  } catch (error) {
+    console.error('❌ Error in loadGroups:', error);
+    throw error;
+  }
 };
 
+// ============================================
+// Load Group Members
+// ============================================
 export const loadGroupMembers = async (groupId: string): Promise<GroupMember[]> => {
   const { data, error } = await supabase
     .from('group_members')
@@ -116,6 +153,9 @@ export const loadGroupMembers = async (groupId: string): Promise<GroupMember[]> 
   }));
 };
 
+// ============================================
+// Load Group Messages
+// ============================================
 export const loadGroupMessages = async (groupId: string): Promise<GroupMessage[]> => {
   const { data, error } = await supabase
     .from('group_messages')
@@ -123,14 +163,15 @@ export const loadGroupMessages = async (groupId: string): Promise<GroupMessage[]
       id,
       group_id,
       sender_id,
-      content,
+      message_text,
       message_type,
       receipt_id,
-      created_at,
+      sent_at,
       profiles (name)
     `)
     .eq('group_id', groupId)
-    .order('created_at', { ascending: true });
+    .is('deleted_at', null)
+    .order('sent_at', { ascending: true });
 
   if (error) throw error;
 
@@ -139,13 +180,16 @@ export const loadGroupMessages = async (groupId: string): Promise<GroupMessage[]
     group_id: d.group_id,
     sender_id: d.sender_id,
     sender_name: d.profiles?.name ?? 'Unknown',
-    content: d.content,
+    content: d.message_text ?? '',
     message_type: d.message_type ?? 'text',
     receipt_id: d.receipt_id,
-    created_at: d.created_at,
+    created_at: d.sent_at,
   }));
 };
 
+// ============================================
+// Send Group Message
+// ============================================
 export const sendGroupMessage = async (
   groupId: string,
   senderId: string,
@@ -156,38 +200,64 @@ export const sendGroupMessage = async (
   const { error } = await supabase.from('group_messages').insert({
     group_id: groupId,
     sender_id: senderId,
-    content,
+    message_text: content,
     message_type: messageType,
     receipt_id: receiptId ?? null,
   });
   if (error) throw error;
 };
 
+// ============================================
+// Create Group
+// ============================================
 export const createGroup = async (
   name: string,
   createdBy: string,
   memberIds: string[] = []
 ): Promise<Group> => {
+  console.log('🏗️ Creating group:', name);
+
   const { data: group, error: groupError } = await supabase
     .from('groups')
     .insert({ name, created_by: createdBy })
     .select()
     .single();
 
-  if (groupError) throw groupError;
+  if (groupError) {
+    console.error('❌ Error creating group:', groupError);
+    throw groupError;
+  }
 
-  // Add extra members (creator is auto-added by DB trigger or we add manually)
+  console.log('✅ Group created:', group.id);
+
+  // Add extra members (creator is auto-added by trigger)
   if (memberIds.length > 0) {
     const memberInserts = memberIds.map((uid) => ({
       group_id: group.id,
       user_id: uid,
+      role: 'member',
     }));
-    await supabase.from('group_members').insert(memberInserts);
+
+    const { error: membersError } = await supabase
+      .from('group_members')
+      .insert(memberInserts);
+
+    if (membersError) {
+      console.error('❌ Error adding members:', membersError);
+    } else {
+      console.log(`✅ Added ${memberIds.length} members`);
+    }
   }
 
-  return { ...group, member_count: memberIds.length + 1 };
+  return { 
+    ...group, 
+    member_count: memberIds.length + 1 
+  };
 };
 
+// ============================================
+// Load Group Receipt
+// ============================================
 export const loadGroupReceipt = async (receiptId: string): Promise<GroupReceipt | null> => {
   const { data, error } = await supabase
     .from('group_receipts')
@@ -196,7 +266,7 @@ export const loadGroupReceipt = async (receiptId: string): Promise<GroupReceipt 
       group_id,
       uploaded_by,
       paid_by,
-      image_url,
+      receipt_image_url,
       merchant_name,
       total_amount,
       status,
@@ -213,15 +283,18 @@ export const loadGroupReceipt = async (receiptId: string): Promise<GroupReceipt 
     .eq('id', receiptId)
     .single();
 
-  if (error) return null;
+  if (error) {
+    console.error('❌ Error loading receipt:', error);
+    return null;
+  }
 
   return {
     id: data.id,
     group_id: data.group_id,
     uploaded_by: data.uploaded_by,
     paid_by: data.paid_by ?? undefined,
-    image_url: data.image_url,
-    merchant_name: data.merchant_name,
+    image_url: data.receipt_image_url,
+    merchant_name: data.merchant_name || 'Unknown',
     total_amount: data.total_amount,
     status: data.status,
     created_at: data.created_at,
@@ -236,44 +309,66 @@ export const loadGroupReceipt = async (receiptId: string): Promise<GroupReceipt 
   };
 };
 
+// ============================================
+// Claim Receipt Item
+// ============================================
 export const claimReceiptItem = async (
   itemId: string,
   userId: string,
   claim: boolean
 ): Promise<void> => {
   if (claim) {
-    await supabase.from('item_claims').upsert({ item_id: itemId, user_id: userId });
+    const { error } = await supabase
+      .from('item_claims')
+      .insert({ 
+        receipt_item_id: itemId, 
+        user_id: userId 
+      });
+    if (error) console.error('❌ Error claiming item:', error);
   } else {
-    await supabase
+    const { error } = await supabase
       .from('item_claims')
       .delete()
-      .eq('item_id', itemId)
+      .eq('receipt_item_id', itemId)
       .eq('user_id', userId);
+    if (error) console.error('❌ Error unclaiming item:', error);
   }
 };
 
+// ============================================
+// Create Group Receipt from OCR
+// ============================================
 export const createGroupReceiptFromOCR = async (
   groupId: string,
   uploadedBy: string,
+  paidBy: string,
   merchantName: string,
   totalAmount: number,
-  items: Array<{ name: string; price: number; quantity?: number }>,
-  paidBy?: string
+  items: Array<{ name: string; price: number; quantity?: number }>
 ): Promise<GroupReceipt> => {
+  console.log('📝 Creating group receipt...');
+  console.log('🔍 Parameters:', { groupId, uploadedBy, paidBy, merchantName, totalAmount });
+
   const { data: receipt, error: receiptError } = await supabase
     .from('group_receipts')
     .insert({
       group_id: groupId,
       uploaded_by: uploadedBy,
-      paid_by: paidBy ?? uploadedBy,
+      paid_by: paidBy,
       merchant_name: merchantName,
       total_amount: totalAmount,
-      status: 'splitting',
+      subtotal: totalAmount,
+      status: 'pending',  // ✅ FIXED - changed from 'splitting' to 'pending'
     })
     .select()
     .single();
 
-  if (receiptError) throw receiptError;
+  if (receiptError) {
+    console.error('❌ Error creating receipt:', receiptError);
+    throw receiptError;
+  }
+
+  console.log('✅ Receipt created:', receipt.id);
 
   if (items.length > 0) {
     const itemInserts = items.map((item) => ({
@@ -282,13 +377,21 @@ export const createGroupReceiptFromOCR = async (
       price: item.price,
       quantity: item.quantity ?? 1,
     }));
-    const { data: insertedItems } = await supabase
+
+    const { data: insertedItems, error: itemsError } = await supabase
       .from('group_receipt_items')
       .insert(itemInserts)
       .select();
 
+    if (itemsError) {
+      console.error('❌ Error creating items:', itemsError);
+    } else {
+      console.log(`✅ Created ${insertedItems?.length} items`);
+    }
+
     return {
       ...receipt,
+      image_url: receipt.receipt_image_url,
       items: (insertedItems ?? []).map((item: any) => ({
         id: item.id,
         receipt_id: item.receipt_id,
@@ -300,13 +403,29 @@ export const createGroupReceiptFromOCR = async (
     };
   }
 
-  return { ...receipt, items: [] };
+  return { 
+    ...receipt, 
+    image_url: receipt.receipt_image_url,
+    items: [] 
+  };
 };
 
+// ============================================
+// Mark Settlement as Paid
+// ============================================
 export const markSettlementAsPaid = async (settlementId: string): Promise<void> => {
   const { error } = await supabase
     .from('group_settlements')
-    .update({ status: 'paid' })
+    .update({ 
+      status: 'paid',
+      paid_at: new Date().toISOString()
+    })
     .eq('id', settlementId);
-  if (error) throw error;
+
+  if (error) {
+    console.error('❌ Error marking settlement as paid:', error);
+    throw error;
+  }
+
+  console.log('✅ Settlement marked as paid');
 };

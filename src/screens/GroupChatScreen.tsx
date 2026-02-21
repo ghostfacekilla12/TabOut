@@ -81,10 +81,10 @@ export default function GroupChatScreen({ navigation, route }: Props) {
                 group_id: newMsg.group_id,
                 sender_id: newMsg.sender_id,
                 sender_name: newMsg.sender_name ?? 'Unknown',
-                content: newMsg.content,
+                content: newMsg.message_text ?? newMsg.content,
                 message_type: newMsg.message_type ?? 'text',
                 receipt_id: newMsg.receipt_id,
-                created_at: newMsg.created_at,
+                created_at: newMsg.sent_at ?? newMsg.created_at,
               },
             ];
           });
@@ -153,9 +153,13 @@ export default function GroupChatScreen({ navigation, route }: Props) {
   };
 
   const captureAndAnalyzeReceipt = async (source: 'camera' | 'gallery') => {
-    if (!user) return;
+    if (!user) {
+      Alert.alert(t('common.error'), 'You must be logged in');
+      return;
+    }
 
     try {
+      // Step 1: Get image
       let result;
       if (source === 'camera') {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
@@ -167,6 +171,7 @@ export default function GroupChatScreen({ navigation, route }: Props) {
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           quality: 0.8,
           allowsEditing: true,
+          aspect: [3, 4],
         });
       } else {
         const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -178,75 +183,122 @@ export default function GroupChatScreen({ navigation, route }: Props) {
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           quality: 0.8,
           allowsEditing: true,
+          aspect: [3, 4],
         });
       }
 
-      if (result.canceled || !result.assets?.[0]) return;
+      if (result.canceled || !result.assets?.[0]) {
+        console.log('Image selection cancelled');
+        return;
+      }
 
+      console.log('📸 Image selected:', result.assets[0].uri);
       setSending(true);
-      const receiptData = await analyzeReceiptWithOCRSpace(result.assets[0].uri);
 
-      // Fetch group members to show "Who Paid?" prompt
+      // Step 2: Analyze with OCR
+      console.log('🔍 Analyzing receipt with OCR...');
+      const receiptData = await analyzeReceiptWithOCRSpace(result.assets[0].uri);
+      
+      console.log('✅ OCR completed:', {
+        merchant: receiptData.merchantName,
+        total: receiptData.total,
+        itemCount: receiptData.items.length,
+      });
+
+      // Step 3: Fetch group members
+      console.log('👥 Fetching group members...');
       const members = await loadGroupMembers(groupId);
+      
+      console.log('✅ Found', members.length, 'members');
 
       setSending(false);
 
-      // Show "Who Paid?" alert
+      // Step 4: Show "Who Paid?" prompt
       await new Promise<void>((resolve) => {
-        const buttons = members.map((m) => ({
-          text: m.user_id === user.id ? `${m.name} (${t('split.you')})` : m.name,
+        const buttons = members.map((member) => ({
+          text: member.user_id === user.id ? `${member.name} (You)` : member.name,
           onPress: async () => {
             try {
               setSending(true);
-              const payerName =
-                m.user_id === user.id ? t('split.you') : m.name;
+              console.log('💾 Creating receipt with payer:', member.user_id);
 
+              // ✅ CORRECT PARAMETER ORDER!
               const receipt = await createGroupReceiptFromOCR(
-                groupId,
-                user.id,
-                receiptData.merchantName,
-                receiptData.total,
-                receiptData.items.map((item) => ({
+                groupId,                                      // 1️⃣ Group UUID
+                user.id,                                      // 2️⃣ Uploader UUID
+                member.user_id,                               // 3️⃣ Payer UUID ✅
+                receiptData.merchantName || 'Unknown Store',  // 4️⃣ Merchant name ✅
+                receiptData.total,                            // 5️⃣ Total amount ✅
+                receiptData.items.map((item) => ({            // 6️⃣ Items array ✅
                   name: item.name,
                   price: item.price,
-                  quantity: item.quantity,
-                })),
-                m.user_id
+                  quantity: item.quantity || 1,
+                }))
               );
 
+              console.log('✅ Receipt created:', receipt.id);
+
+              // Send message
+              const payerName = member.user_id === user.id ? 'You' : member.name;
               await sendGroupMessage(
                 groupId,
                 user.id,
-                `${payerName} paid: ${receiptData.merchantName} - ${receiptData.total.toFixed(2)} EGP`,
+                `📝 ${payerName} paid: ${receiptData.merchantName || 'Receipt'} - ${receiptData.total.toFixed(2)} EGP`,
                 'receipt',
                 receipt.id
               );
-            } catch (err) {
-              console.error('Error creating receipt:', err);
-              Alert.alert(t('common.error'), t('split.scan_receipt_error'));
+
+              console.log('✅ Receipt message sent');
+              
+              Alert.alert(
+                t('common.success'),
+                `Receipt uploaded! ${receiptData.items.length} items found. Tap to split!`
+              );
+
+              resolve();
+            } catch (error: any) {
+              console.error('❌ Error creating receipt:', error);
+              Alert.alert(
+                t('common.error'),
+                error?.message || t('split.scan_receipt_error')
+              );
+              resolve();
             } finally {
               setSending(false);
-              resolve();
             }
           },
         }));
-        buttons.push({ text: t('common.cancel'), onPress: () => { resolve(); }, style: 'cancel' } as any);
-        Alert.alert(t('groups.who_paid'), t('groups.select_who_paid_receipt'), buttons);
+
+        buttons.push({ 
+          text: t('common.cancel'), 
+          onPress: () => resolve(), 
+          style: 'cancel' 
+        } as any);
+
+        Alert.alert(
+          t('groups.who_paid'),
+          t('groups.select_who_paid_receipt'),
+          buttons
+        );
       });
-    } catch (error) {
-      console.error('Error uploading receipt:', error);
-      Alert.alert(t('common.error'), t('split.scan_receipt_error'));
+    } catch (error: any) {
+      console.error('❌ Error uploading receipt:', error);
+      Alert.alert(
+        t('common.error'),
+        error?.message || t('split.scan_receipt_error')
+      );
     } finally {
       setSending(false);
     }
   };
 
   const handleReceiptPress = (receiptId: string) => {
+    console.log('📄 Opening receipt:', receiptId);
     navigation.navigate('GroupReceiptSplit', { groupId, receiptId });
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -293,7 +345,7 @@ export default function GroupChatScreen({ navigation, route }: Props) {
       >
         <View style={[styles.inputRow, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border }]}>
           <TouchableOpacity style={styles.attachBtn} onPress={handleUploadReceipt} disabled={sending}>
-            <Ionicons name="receipt-outline" size={24} color={theme.colors.primary} />
+            <Ionicons name="receipt-outline" size={24} color={sending ? theme.colors.textSecondary : theme.colors.primary} />
           </TouchableOpacity>
           <TextInput
             style={[styles.input, { backgroundColor: theme.colors.background, color: theme.colors.text }]}

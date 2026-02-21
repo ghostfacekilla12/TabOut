@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Alert,
   ScrollView,
+  Clipboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,7 +18,6 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../services/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../services/supabase';
-import { createGroup } from '../services/groupService';
 import { ContactPickerModal } from '../components/ContactPickerModal';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -78,53 +78,148 @@ export default function CreateGroupScreen({ navigation }: Props) {
     setLoading(true);
 
     try {
+      console.log('🏗️ Starting group creation...');
+
+      // Step 1: Create the group
+      const { data: group, error: groupError } = await supabase
+        .from('groups')
+        .insert({ name: groupName.trim(), created_by: user.id })
+        .select()
+        .single();
+
+      if (groupError) {
+        console.error('❌ Group creation error:', groupError);
+        throw groupError;
+      }
+
+      console.log('✅ Group created:', group.id);
+
+      // Step 2: Manually add creator as admin (backup for trigger)
+      const { error: creatorError } = await supabase
+        .from('group_members')
+        .insert({
+          group_id: group.id,
+          user_id: user.id,
+          role: 'admin',
+        });
+
+      if (creatorError && !creatorError.message?.includes('duplicate')) {
+        console.error('❌ Error adding creator:', creatorError);
+      } else {
+        console.log('✅ Creator added to group');
+      }
+
+      // Step 3: Process members - ONLY ADD IF THEY EXIST IN TAB
       const memberUserIds: string[] = [];
+      const nonTabMembers: PendingMember[] = [];
 
       for (const member of selectedMembers) {
-        const identifier = member.email ?? member.phone;
-        if (!identifier) continue;
+        console.log('🔍 Checking member:', member.name);
 
-        const query = member.email
-          ? `email.eq.${member.email}`
-          : `phone.eq.${(member.phone ?? '').replace(/\s+/g, '')}`;
+        let existingProfile = null;
 
-        const { data: existingProfile } = await supabase
-          .from('profiles')
-          .select('id')
-          .or(query)
-          .maybeSingle();
+        // Check by email first
+        if (member.email) {
+          const { data } = await supabase
+            .from('profiles')
+            .select('id, name')
+            .eq('email', member.email)
+            .maybeSingle();
+
+          existingProfile = data;
+        }
+
+        // If not found by email, check by phone
+        if (!existingProfile && member.phone) {
+          const cleanPhone = member.phone.replace(/\s+/g, '');
+          const { data } = await supabase
+            .from('profiles')
+            .select('id, name')
+            .eq('phone', cleanPhone)
+            .maybeSingle();
+
+          existingProfile = data;
+        }
 
         if (existingProfile?.id) {
+          console.log(`✅ ${member.name} exists in Tab:`, existingProfile.id);
           memberUserIds.push(existingProfile.id);
         } else {
-          const { data: newProfile, error: profileError } = await supabase
-            .from('profiles')
-            .insert({ name: member.name, phone: member.phone, email: member.email })
-            .select()
-            .single();
-
-          if (profileError) {
-            console.warn('Could not create profile for', member.name, profileError);
-            continue;
-          }
-          memberUserIds.push(newProfile.id);
+          console.log(`⚠️ ${member.name} NOT in Tab - needs invite`);
+          nonTabMembers.push(member);
         }
       }
 
-      await createGroup(groupName.trim(), user.id, memberUserIds);
+      // Step 4: Add existing Tab users to group
+      if (memberUserIds.length > 0) {
+        console.log(`➕ Adding ${memberUserIds.length} members to group...`);
 
-      Alert.alert(t('common.success'), t('groups.group_created'));
-      navigation.goBack();
-    } catch (error) {
-      console.error('Error creating group:', error);
-      Alert.alert(t('common.error'), t('groups.create_error'));
+        const { error: membersError } = await supabase
+          .from('group_members')
+          .insert(
+            memberUserIds.map((userId) => ({
+              group_id: group.id,
+              user_id: userId,
+              role: 'member',
+            }))
+          );
+
+        if (membersError) {
+          console.error('❌ Error adding members:', membersError);
+          Alert.alert(
+            t('common.warning'),
+            `Group created but couldn't add some members`
+          );
+        } else {
+          console.log(`✅ Added ${memberUserIds.length} members successfully`);
+        }
+      }
+
+      // Step 5: Handle non-Tab members
+      if (nonTabMembers.length > 0) {
+        const inviteLink = `https://tab.app/join/${group.id}`;
+        const names = nonTabMembers.map((m) => m.name).join(', ');
+
+        setTimeout(() => {
+          Alert.alert(
+            t('groups.invite_needed'),
+            `${names} ${nonTabMembers.length > 1 ? "aren't" : "isn't"} on Tab yet.`,
+            [
+              {
+                text: t('groups.copy_link'),
+                onPress: () => {
+                  Clipboard.setString(inviteLink);
+                  Alert.alert(t('common.success'), t('groups.link_copied'));
+                },
+              },
+              { text: t('common.ok'), style: 'cancel' },
+            ]
+          );
+        }, 500);
+      }
+
+      // Step 6: Success! Navigate back
+      Alert.alert(t('common.success'), t('groups.group_created'), [
+        {
+          text: t('common.ok'),
+          onPress: () => {
+            navigation.goBack();
+          },
+        },
+      ]);
+    } catch (error: any) {
+      console.error('❌ Error creating group:', error);
+      Alert.alert(
+        t('common.error'),
+        error.message || t('groups.create_error')
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="close" size={28} color={theme.colors.text} />

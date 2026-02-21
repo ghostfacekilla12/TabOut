@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
+import * as Contacts from 'expo-contacts';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { useAuth } from '../services/AuthContext';
@@ -86,7 +87,6 @@ export default function FriendsScreen({ navigation }: Props) {
     const input = addInput.trim();
     if (!input || !user) return;
 
-    // Basic validation: must look like an email or phone number
     const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input);
     const isPhone = /^\+?[\d\s\-()]{7,15}$/.test(input);
     if (!isEmail && !isPhone) {
@@ -100,7 +100,7 @@ export default function FriendsScreen({ navigation }: Props) {
         .from('profiles')
         .select('id')
         .or(`email.eq.${input},phone.eq.${input}`)
-        .single();
+        .maybeSingle();
 
       if (!profileData) {
         Alert.alert(t('common.error'), t('friends.friend_add_error'));
@@ -116,57 +116,167 @@ export default function FriendsScreen({ navigation }: Props) {
       setAddInput('');
       setAddModalVisible(false);
       fetchFriends();
-    } catch {
+    } catch (error) {
+      console.error('Error adding friend:', error);
       Alert.alert(t('common.error'), t('friends.friend_add_error'));
     } finally {
       setAddLoading(false);
     }
   };
 
-  const handleImportContact = () => {
-    setContactPickerVisible(true);
+  const handleImportContact = async () => {
+    try {
+      console.log('📞 Requesting contacts permission...');
+
+      const { status } = await Contacts.requestPermissionsAsync();
+      
+      console.log('📞 Permission status:', status);
+
+      if (status !== 'granted') {
+        Alert.alert(
+          t('common.permission_required'),
+          'Tab needs access to your contacts to add friends'
+        );
+        return;
+      }
+
+      console.log('✅ Permission granted - CLOSING ADD MODAL AND OPENING CONTACTS');
+      
+      // ✅ CLOSE THE ADD FRIEND MODAL FIRST!
+      setAddModalVisible(false);
+      
+      // ✅ THEN OPEN CONTACT PICKER
+      setTimeout(() => {
+        setContactPickerVisible(true);
+      }, 300); // Wait for modal close animation
+
+    } catch (error) {
+      console.error('❌ Error requesting contacts permission:', error);
+      Alert.alert(
+        t('common.error'),
+        'Could not access contacts. Please check app permissions in Settings.'
+      );
+    }
   };
 
   const handleContactSelected = async (contact: { name: string; email?: string; phone?: string }) => {
     const { name, email, phone } = contact;
 
+    console.log('👤 Contact selected:', { name, email, phone });
+
     if (!email && !phone) {
-      Alert.alert(t('common.error'), t('friends.friend_add_error'));
+      Alert.alert(
+        'No Contact Info',
+        `${name} has no email or phone number saved in your contacts.`
+      );
+      setContactPickerVisible(false);
       return;
     }
 
     if (!user) return;
 
     try {
-      const query = email
-        ? `email.eq.${email}`
-        : `phone.eq.${(phone ?? '').replace(/\s+/g, '')}`;
+      // ✅ NORMALIZE PHONE NUMBER - REMOVE SPACES, DASHES, PARENTHESES
+      let normalizedPhone = '';
+      if (phone) {
+        normalizedPhone = phone.replace(/[\s\-\(\)]/g, '');
+        console.log('📱 Normalized phone:', normalizedPhone);
+      }
 
-      const { data: profileData } = await supabase
+      // ✅ SEARCH BY PHONE NUMBER OR EMAIL
+      let query;
+      
+      if (email && phone) {
+        // Try both email AND phone
+        const last10 = normalizedPhone.slice(-10);
+        query = `email.eq.${email},phone.eq.${normalizedPhone},phone.like.%${last10}`;
+      } else if (email) {
+        query = `email.eq.${email}`;
+      } else if (phone) {
+        // ✅ SEARCH PHONE WITH PARTIAL MATCHING
+        // Try: exact match, last 10 digits
+        const last10 = normalizedPhone.slice(-10);
+        query = `phone.eq.${normalizedPhone},phone.like.%${last10}`;
+      }
+
+      console.log('🔍 Searching with query:', query);
+
+      const { data: profileData, error: searchError } = await supabase
         .from('profiles')
-        .select('id')
-        .or(query)
-        .single();
+        .select('id, name, email, phone')
+        .or(query!)
+        .maybeSingle();
+
+      if (searchError) {
+        console.error('❌ Search error:', searchError);
+        throw searchError;
+      }
 
       if (!profileData) {
+        console.log('⚠️ Contact not on Tab');
+        
+        // ✅ BETTER MESSAGE - SHOW WHAT WE SEARCHED FOR
+        const searchedWith = email ? `Email: ${email}` : `Phone: ${phone}`;
+        
         Alert.alert(
-          t('friends.not_on_tab'),
-          t('friends.not_on_tab_desc', { name })
+          '❌ Not on Tab',
+          `${name} is not on Tab yet.\n\nSearched with:\n${searchedWith}\n\nAsk them to sign up with this ${email ? 'email' : 'phone number'}!`,
+          [
+            { text: 'Try Another Contact', onPress: () => {} },
+            { text: 'Cancel', onPress: () => setContactPickerVisible(false), style: 'cancel' }
+          ]
         );
         return;
       }
 
-      await supabase.from('friendships').insert([
+      console.log('✅ Found profile:', profileData);
+
+      // ✅ CHECK IF ALREADY FRIENDS
+      const { data: existingFriendship } = await supabase
+        .from('friendships')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('friend_id', profileData.id)
+        .maybeSingle();
+
+      if (existingFriendship) {
+        Alert.alert(
+          '✅ Already Friends!',
+          `You're already friends with ${profileData.name}!`,
+          [{ text: 'OK', onPress: () => setContactPickerVisible(false) }]
+        );
+        return;
+      }
+
+      // ✅ ADD AS FRIEND
+      const { error: insertError } = await supabase.from('friendships').insert([
         { user_id: user.id, friend_id: profileData.id },
         { user_id: profileData.id, friend_id: user.id },
       ]);
 
-      Alert.alert(t('common.ok'), t('friends.contact_imported'));
-      setAddModalVisible(false);
-      fetchFriends();
+      if (insertError) {
+        console.error('❌ Insert error:', insertError);
+        throw insertError;
+      }
+
+      console.log('✅ Friend added successfully');
+
+      Alert.alert(
+        '🎉 Success!',
+        `${profileData.name} added as friend!`,
+        [{ text: 'OK', onPress: () => {
+          setContactPickerVisible(false);
+          fetchFriends(); // Refresh friends list
+        }}]
+      );
+
     } catch (err) {
-      console.error('Contact import error:', err);
-      Alert.alert(t('common.error'), t('friends.friend_add_error'));
+      console.error('❌ Contact import error:', err);
+      Alert.alert(
+        'Error',
+        'Could not add friend. Please try again.',
+        [{ text: 'OK', onPress: () => setContactPickerVisible(false) }]
+      );
     }
   };
 
@@ -175,6 +285,8 @@ export default function FriendsScreen({ navigation }: Props) {
       f.name.toLowerCase().includes(search.toLowerCase()) ||
       f.email?.toLowerCase().includes(search.toLowerCase())
   );
+
+  console.log('🔄 FriendsScreen RENDER - contactPickerVisible:', contactPickerVisible);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -269,11 +381,16 @@ export default function FriendsScreen({ navigation }: Props) {
         </View>
       </Modal>
 
-      <ContactPickerModal
-        visible={contactPickerVisible}
-        onClose={() => setContactPickerVisible(false)}
-        onSelectContact={handleContactSelected}
-      />
+      {contactPickerVisible && (
+        <ContactPickerModal
+          visible={true}
+          onClose={() => {
+            console.log('🚪 CLOSING CONTACT PICKER');
+            setContactPickerVisible(false);
+          }}
+          onSelectContact={handleContactSelected}
+        />
+      )}
     </SafeAreaView>
   );
 }
