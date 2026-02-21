@@ -25,6 +25,10 @@ import GroupsListScreen from '../screens/GroupsListScreen';
 import CreateGroupScreen from '../screens/CreateGroupScreen';
 import GroupChatScreen from '../screens/GroupChatScreen';
 import GroupReceiptSplitScreen from '../screens/GroupReceiptSplitScreen';
+import CashDebtScreen from '../screens/CashDebtScreen';
+import QuickSplitScreen from '../screens/QuickSplitScreen';
+import BalancesScreen from '../screens/BalancesScreen';
+import FriendBalanceDetailScreen from '../screens/FriendBalanceDetailScreen';
 import type { ReceiptData } from '../services/mindeeOCR';
 import type { SplitResultsRouteParams } from '../screens/SplitResultsScreen';
 
@@ -54,6 +58,10 @@ export type RootStackParamList = {
   CreateGroup: undefined;
   GroupChat: { groupId: string; groupName: string };
   GroupReceiptSplit: { groupId: string; receiptId: string };
+  CashDebt: undefined;
+  QuickSplit: undefined;
+  Balances: undefined;
+  FriendBalanceDetail: { friendId: string; friendName: string };
 };
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -177,6 +185,26 @@ const MainNavigator = () => (
     <RootStack.Screen
       name="GroupReceiptSplit"
       component={GroupReceiptSplitScreen}
+      options={{ headerShown: false }}
+    />
+    <RootStack.Screen
+      name="CashDebt"
+      component={CashDebtScreen}
+      options={{ headerShown: false, presentation: 'modal' }}
+    />
+    <RootStack.Screen
+      name="QuickSplit"
+      component={QuickSplitScreen}
+      options={{ headerShown: false, presentation: 'modal' }}
+    />
+    <RootStack.Screen
+      name="Balances"
+      component={BalancesScreen}
+      options={{ headerShown: false }}
+    />
+    <RootStack.Screen
+      name="FriendBalanceDetail"
+      component={FriendBalanceDetailScreen}
       options={{ headerShown: false }}
     />
   </RootStack.Navigator>

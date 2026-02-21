@@ -1,15 +1,16 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { useAuth } from '../services/AuthContext';
@@ -40,9 +41,12 @@ export default function GroupsListScreen({ navigation }: Props) {
     }
   }, [user]);
 
-  useEffect(() => {
-    fetchGroups();
-  }, [fetchGroups]);
+  useFocusEffect(
+    useCallback(() => {
+      console.log('📱 Groups screen focused - refreshing...');
+      fetchGroups();
+    }, [fetchGroups])
+  );
 
   const renderGroup = ({ item }: { item: Group }) => (
     <TouchableOpacity

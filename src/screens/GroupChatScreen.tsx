@@ -6,12 +6,12 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useTranslation } from 'react-i18next';
@@ -23,6 +23,7 @@ import { supabase } from '../services/supabase';
 import { analyzeReceiptWithOCRSpace } from '../services/ocrSpaceAPI';
 import {
   loadGroupMessages,
+  loadGroupMembers,
   sendGroupMessage,
   createGroupReceiptFromOCR,
 } from '../services/groupService';
@@ -185,25 +186,53 @@ export default function GroupChatScreen({ navigation, route }: Props) {
       setSending(true);
       const receiptData = await analyzeReceiptWithOCRSpace(result.assets[0].uri);
 
-      const receipt = await createGroupReceiptFromOCR(
-        groupId,
-        user.id,
-        receiptData.merchantName,
-        receiptData.total,
-        receiptData.items.map((item) => ({
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-        }))
-      );
+      // Fetch group members to show "Who Paid?" prompt
+      const members = await loadGroupMembers(groupId);
 
-      await sendGroupMessage(
-        groupId,
-        user.id,
-        `Receipt: ${receiptData.merchantName} - ${receiptData.total.toFixed(2)} EGP`,
-        'receipt',
-        receipt.id
-      );
+      setSending(false);
+
+      // Show "Who Paid?" alert
+      await new Promise<void>((resolve) => {
+        const buttons = members.map((m) => ({
+          text: m.user_id === user.id ? `${m.name} (${t('split.you')})` : m.name,
+          onPress: async () => {
+            try {
+              setSending(true);
+              const payerName =
+                m.user_id === user.id ? t('split.you') : m.name;
+
+              const receipt = await createGroupReceiptFromOCR(
+                groupId,
+                user.id,
+                receiptData.merchantName,
+                receiptData.total,
+                receiptData.items.map((item) => ({
+                  name: item.name,
+                  price: item.price,
+                  quantity: item.quantity,
+                })),
+                m.user_id
+              );
+
+              await sendGroupMessage(
+                groupId,
+                user.id,
+                `${payerName} paid: ${receiptData.merchantName} - ${receiptData.total.toFixed(2)} EGP`,
+                'receipt',
+                receipt.id
+              );
+            } catch (err) {
+              console.error('Error creating receipt:', err);
+              Alert.alert(t('common.error'), t('split.scan_receipt_error'));
+            } finally {
+              setSending(false);
+              resolve();
+            }
+          },
+        }));
+        buttons.push({ text: t('common.cancel'), onPress: () => { resolve(); }, style: 'cancel' } as any);
+        Alert.alert(t('groups.who_paid'), t('groups.select_who_paid_receipt'), buttons);
+      });
     } catch (error) {
       console.error('Error uploading receipt:', error);
       Alert.alert(t('common.error'), t('split.scan_receipt_error'));

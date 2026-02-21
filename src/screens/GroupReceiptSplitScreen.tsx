@@ -5,11 +5,11 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   Alert,
   ActivityIndicator,
   Switch,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -19,9 +19,10 @@ import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../services/supabase';
 import {
   loadGroupReceipt,
+  loadGroupMembers,
   claimReceiptItem,
 } from '../services/groupService';
-import type { GroupReceipt, GroupReceiptItem } from '../services/groupService';
+import type { GroupReceipt, GroupReceiptItem, GroupMember } from '../services/groupService';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GroupReceiptSplit'>;
@@ -33,19 +34,24 @@ export default function GroupReceiptSplitScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
 
   const [receipt, setReceipt] = useState<GroupReceipt | null>(null);
+  const [members, setMembers] = useState<GroupMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [splitEqually, setSplitEqually] = useState(false);
 
   const fetchReceipt = useCallback(async () => {
     try {
-      const data = await loadGroupReceipt(receiptId);
+      const [data, memberData] = await Promise.all([
+        loadGroupReceipt(receiptId),
+        loadGroupMembers(groupId),
+      ]);
       setReceipt(data);
+      setMembers(memberData);
     } catch (error) {
       console.error('Error loading receipt:', error);
     } finally {
       setLoading(false);
     }
-  }, [receiptId]);
+  }, [receiptId, groupId]);
 
   useEffect(() => {
     fetchReceipt();
@@ -108,6 +114,32 @@ export default function GroupReceiptSplitScreen({ navigation, route }: Props) {
       .filter((item) => item.claimed_by.includes(user.id))
       .reduce((sum, item) => sum + (item.price * item.quantity) / Math.max(item.claimed_by.length, 1), 0);
   };
+
+  const getMemberTotal = (memberId: string) => {
+    if (!receipt) return 0;
+    if (splitEqually) {
+      const claimers = new Set<string>();
+      receipt.items.forEach((item) => item.claimed_by.forEach((uid) => claimers.add(uid)));
+      const count = Math.max(claimers.size, 1);
+      return receipt.total_amount / count;
+    }
+    return receipt.items
+      .filter((item) => item.claimed_by.includes(memberId))
+      .reduce((sum, item) => sum + (item.price * item.quantity) / Math.max(item.claimed_by.length, 1), 0);
+  };
+
+  const payerId = receipt?.paid_by;
+  const payerMember = members.find((m) => m.user_id === payerId);
+  const payerName = payerMember
+    ? payerMember.user_id === user?.id
+      ? t('split.you')
+      : payerMember.name
+    : null;
+
+  const payerTotal = payerId ? getMemberTotal(payerId) : 0;
+  const overdueTotal = members
+    .filter((m) => m.user_id !== payerId)
+    .reduce((sum, m) => sum + getMemberTotal(m.user_id), 0);
 
   const handleMarkAsPaid = async () => {
     Alert.alert(
@@ -215,6 +247,27 @@ export default function GroupReceiptSplitScreen({ navigation, route }: Props) {
         </View>
       </View>
 
+      {/* Payment Summary */}
+      {payerName && (
+        <View style={[styles.paymentSummary, { backgroundColor: theme.colors.surface }]}>
+          <Text style={[styles.paymentSummaryTitle, { color: theme.colors.text }]}>
+            {t('groups.payment_summary')}
+          </Text>
+          <View style={styles.paymentSummaryRow}>
+            <Text style={styles.paymentSummaryPaid}>
+              ✅ {payerName} {t('groups.paid')}: {payerTotal.toFixed(2)} EGP
+            </Text>
+          </View>
+          {overdueTotal > 0 && (
+            <View style={styles.paymentSummaryRow}>
+              <Text style={styles.paymentSummaryOverdue}>
+                ⏰ {t('groups.overdue')}: {overdueTotal.toFixed(2)} EGP
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+
       {/* Split type toggle */}
       <View style={[styles.splitToggle, { backgroundColor: theme.colors.surface }]}>
         <Text style={[styles.splitToggleLabel, { color: theme.colors.text }]}>
@@ -279,6 +332,16 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 18, fontWeight: '700' },
   headerTotal: { fontSize: 16, fontWeight: '600', marginTop: 2 },
   errorText: { textAlign: 'center', marginTop: 40, fontSize: 16 },
+  paymentSummary: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 12,
+    padding: 14,
+  },
+  paymentSummaryTitle: { fontSize: 14, fontWeight: '700', marginBottom: 8 },
+  paymentSummaryRow: { marginVertical: 2 },
+  paymentSummaryPaid: { fontSize: 14, fontWeight: '600', color: '#22c55e' },
+  paymentSummaryOverdue: { fontSize: 14, fontWeight: '600', color: '#ef4444' },
   splitToggle: {
     flexDirection: 'row',
     justifyContent: 'space-between',
