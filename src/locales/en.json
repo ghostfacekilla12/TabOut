@@ -204,7 +204,9 @@
     "default_tax": "Default Tax %",
     "profile": "Profile",
     "notifications": "Notifications",
-    "dark_mode": "Dark Mode"
+    "dark_mode": "Dark Mode",
+    "language_changed_title": "Language Changed",
+    "language_changed_message": "Please restart the app to apply language changes."
   },
   "scan": {
     "title": "Scan",

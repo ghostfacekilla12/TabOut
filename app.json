@@ -58,6 +58,8 @@
         }
       ]
     ],
-    "extra": {}
+    "extra": {
+      "supportsRTL": true
+    }
   }
 }

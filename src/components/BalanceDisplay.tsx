@@ -22,10 +22,12 @@ export default function BalanceDisplay({ totalOwed, totalOwe, currency, language
   const styles = createStyles(theme);
 
   return (
-    <View style={[styles.card, { backgroundColor: isPositive ? theme.colors.success : theme.colors.warning }]}>
+    <View style={styles.card}>
       <Text style={styles.title}>{t('home.balance_summary')}</Text>
-      <Text style={styles.netAmount}>{formatCurrency(Math.abs(net), currency, language)}</Text>
-      <Text style={styles.netLabel}>
+      <Text style={[styles.netAmount, { color: isPositive ? theme.colors.success : theme.colors.warning }]}>
+        {formatCurrency(Math.abs(net), currency, language)}
+      </Text>
+      <Text style={[styles.netLabel, { color: isPositive ? theme.colors.success : theme.colors.warning }]}>
         {net === 0
           ? t('friends.all_settled')
           : isPositive
@@ -35,12 +37,16 @@ export default function BalanceDisplay({ totalOwed, totalOwe, currency, language
       <View style={styles.breakdown}>
         <View style={styles.breakdownItem}>
           <Text style={styles.breakdownLabel}>{t('home.you_are_owed')}</Text>
-          <Text style={styles.breakdownAmount}>{formatCurrency(totalOwed, currency, language)}</Text>
+          <Text style={[styles.breakdownAmount, { color: theme.colors.success }]}>
+            {formatCurrency(totalOwed, currency, language)}
+          </Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.breakdownItem}>
           <Text style={styles.breakdownLabel}>{t('home.you_owe')}</Text>
-          <Text style={styles.breakdownAmount}>{formatCurrency(totalOwe, currency, language)}</Text>
+          <Text style={[styles.breakdownAmount, { color: theme.colors.warning }]}>
+            {formatCurrency(totalOwe, currency, language)}
+          </Text>
         </View>
       </View>
     </View>
@@ -49,6 +55,7 @@ export default function BalanceDisplay({ totalOwed, totalOwe, currency, language
 
 const createStyles = (theme: Theme) => StyleSheet.create({
   card: {
+    backgroundColor: theme.colors.card,
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.lg,
     marginBottom: theme.spacing.md,
@@ -57,7 +64,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   title: {
     fontSize: 13,
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.8)',
+    color: theme.colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginBottom: theme.spacing.xs,
@@ -65,23 +72,21 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   netAmount: {
     fontSize: 36,
     fontWeight: '800',
-    color: '#FFFFFF',
     marginBottom: 4,
   },
   netLabel: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.85)',
     marginBottom: theme.spacing.md,
   },
   breakdown: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: theme.colors.background,
     borderRadius: theme.borderRadius.md,
     padding: theme.spacing.sm,
   },
   breakdownItem: { flex: 1, alignItems: 'center' },
-  breakdownLabel: { fontSize: 11, color: 'rgba(255,255,255,0.8)', marginBottom: 2 },
-  breakdownAmount: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
-  divider: { width: 1, height: 30, backgroundColor: 'rgba(255,255,255,0.3)' },
+  breakdownLabel: { fontSize: 11, color: theme.colors.textSecondary, marginBottom: 2 },
+  breakdownAmount: { fontSize: 14, fontWeight: '700' },
+  divider: { width: 1, height: 30, backgroundColor: theme.colors.border },
 });

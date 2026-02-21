@@ -106,7 +106,7 @@ export default function HomeScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={dynStyles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.colors.accent} />
+      <StatusBar barStyle="light-content" backgroundColor={theme.colors.headerBackground} />
       <View style={dynStyles.header}>
         <View>
           <Text style={dynStyles.headerTitle}>{t('app_name')}</Text>
@@ -212,7 +212,7 @@ const makeStyles = (theme: Theme) =>
       backgroundColor: theme.colors.background,
     },
     header: {
-      backgroundColor: theme.colors.accent,
+      backgroundColor: theme.colors.headerBackground,
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',

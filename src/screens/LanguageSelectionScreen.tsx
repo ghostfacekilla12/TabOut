@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, I18nManager, Alert, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import i18n, { saveLanguage } from '../services/i18n';
@@ -21,6 +21,21 @@ export default function LanguageSelectionScreen({ onSelected }: Props) {
       await i18n.changeLanguage(lang);
       await saveLanguage(lang);
       await AsyncStorage.setItem(LANGUAGE_SELECTED_KEY, 'true');
+
+      const shouldBeRTL = lang === 'ar';
+      if (I18nManager.isRTL !== shouldBeRTL) {
+        I18nManager.allowRTL(shouldBeRTL);
+        I18nManager.forceRTL(shouldBeRTL);
+        if (Platform.OS !== 'web') {
+          Alert.alert(
+            i18n.t('settings.language_changed_title'),
+            i18n.t('settings.language_changed_message'),
+            [{ text: i18n.t('common.ok'), onPress: onSelected }]
+          );
+          return;
+        }
+      }
+
       onSelected();
     } catch (error) {
       console.error('Failed to set language:', error);
