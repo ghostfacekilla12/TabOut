@@ -30,7 +30,6 @@
       "package": "com.tabout.app",
       "permissions": [
         "CAMERA",
-        "READ_CONTACTS",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE"
       ]

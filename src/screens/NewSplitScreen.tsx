@@ -551,8 +551,8 @@ export default function NewSplitScreen({ navigation, route }: Props) {
           >
             <Text style={styles.friendPickerText}>
               {paidBy === user?.id
-                ? t('split.you') ?? 'You'
-                : friends.find((f) => f.id === paidBy)?.name ?? t('split.select_payer') ?? 'Select who paid'}
+                ? t('split.you')
+                : friends.find((f: Friend) => f.id === paidBy)?.name ?? t('split.select_payer')}
             </Text>
             <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
           </TouchableOpacity>
