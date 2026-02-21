@@ -204,7 +204,9 @@
     "default_tax": "نسبة الضريبة الافتراضية",
     "profile": "الملف الشخصي",
     "notifications": "الإشعارات",
-    "dark_mode": "الوضع الداكن"
+    "dark_mode": "الوضع الداكن",
+    "language_changed_title": "تغيير اللغة",
+    "language_changed_message": "يرجى إعادة تشغيل التطبيق لتطبيق تغييرات اللغة."
   },
   "scan": {
     "title": "مسح",

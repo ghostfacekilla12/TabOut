@@ -11,6 +11,9 @@ import {
   TouchableOpacity,
   Modal,
   FlatList,
+  I18nManager,
+  Alert,
+  Platform,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
@@ -112,6 +115,19 @@ export default function StatsScreen() {
       await i18n.changeLanguage(lang);
       await saveLanguage(lang);
       setCurrentLanguage(lang);
+
+      const shouldBeRTL = lang === 'ar';
+      if (I18nManager.isRTL !== shouldBeRTL) {
+        I18nManager.allowRTL(shouldBeRTL);
+        I18nManager.forceRTL(shouldBeRTL);
+        if (Platform.OS !== 'web') {
+          Alert.alert(
+            t('settings.language_changed_title') || 'Language Changed',
+            t('settings.language_changed_message') || 'Please restart the app to apply language changes.',
+            [{ text: t('common.ok') || 'OK' }]
+          );
+        }
+      }
     } catch (error) {
       console.error('Failed to change language:', error);
     }
@@ -128,7 +144,7 @@ export default function StatsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.colors.accent} />
+      <StatusBar barStyle="light-content" backgroundColor={theme.colors.headerBackground} />
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{t('stats.title')}</Text>
       </View>
@@ -311,7 +327,7 @@ export default function StatsScreen() {
 const createStyles = (theme: Theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   header: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: theme.colors.headerBackground,
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
   },
