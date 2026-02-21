@@ -27,6 +27,7 @@ export default function SignupScreen({ navigation }: Props) {
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -38,9 +39,20 @@ export default function SignupScreen({ navigation }: Props) {
       Alert.alert(t('common.error'), t('auth.name_required'));
       return false;
     }
-    if (!email.includes('@')) {
+    if (!email.trim() && !phone.trim()) {
+      Alert.alert(t('common.error'), 'Either email or phone number is required');
+      return false;
+    }
+    if (email.trim() && !email.includes('@')) {
       Alert.alert(t('common.error'), t('auth.invalid_email'));
       return false;
+    }
+    if (phone.trim()) {
+      const phoneRegex = /^\+?[\d\s\-()]{7,15}$/;
+      if (!phoneRegex.test(phone.trim())) {
+        Alert.alert(t('common.error'), t('auth.invalid_phone'));
+        return false;
+      }
     }
     if (password.length < 6) {
       Alert.alert(t('common.error'), t('auth.password_too_short'));
@@ -57,7 +69,12 @@ export default function SignupScreen({ navigation }: Props) {
     if (!validate()) return;
 
     setLoading(true);
-    const { error } = await signUpWithEmail(email.trim(), password, name.trim());
+    const { error } = await signUpWithEmail(
+      email.trim() || undefined,
+      password,
+      name.trim(),
+      phone.trim() || undefined
+    );
     setLoading(false);
 
     if (error) {
@@ -88,7 +105,7 @@ export default function SignupScreen({ navigation }: Props) {
             placeholderTextColor={theme.colors.textSecondary}
           />
 
-          <Text style={styles.label}>{t('auth.email')}</Text>
+          <Text style={styles.label}>{t('auth.email')} ({t('common.optional')})</Text>
           <TextInput
             style={styles.input}
             value={email}
@@ -99,6 +116,19 @@ export default function SignupScreen({ navigation }: Props) {
             autoComplete="email"
             placeholderTextColor={theme.colors.textSecondary}
           />
+
+          <Text style={styles.label}>{t('auth.phone')} ({t('common.optional')})</Text>
+          <TextInput
+            style={styles.input}
+            value={phone}
+            onChangeText={setPhone}
+            placeholder={t('auth.phone_placeholder')}
+            keyboardType="phone-pad"
+            autoComplete="tel"
+            placeholderTextColor={theme.colors.textSecondary}
+          />
+
+          <Text style={styles.hint}>{t('auth.email_phone_hint')}</Text>
 
           <Text style={styles.label}>{t('auth.password')}</Text>
           <TextInput
@@ -179,6 +209,13 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.colors.text,
     marginBottom: theme.spacing.xs,
     marginTop: theme.spacing.sm,
+  },
+  hint: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    marginTop: theme.spacing.xs,
+    marginBottom: theme.spacing.xs,
+    fontStyle: 'italic',
   },
   input: {
     borderWidth: 1,

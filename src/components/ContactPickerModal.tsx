@@ -34,7 +34,7 @@ export const ContactPickerModal: React.FC<ContactPickerModalProps> = ({
   onSelectContact,
 }) => {
   const { t } = useTranslation();
-  const [contacts, setContacts] = useState<Contacts.Contact[]>([]);
+  const [contacts, setContacts] = useState<Contacts.ExistingContact[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
@@ -62,7 +62,7 @@ export const ContactPickerModal: React.FC<ContactPickerModalProps> = ({
 
       console.log(`✅ ContactPickerModal: Loaded ${data.length} total contacts`);
 
-      const validContacts = data.filter((c) => c.name && c.name.trim().length > 0);
+      const validContacts = data.filter((c) => c.name && c.name.trim().length > 0) as Contacts.ExistingContact[];
       
       console.log(`✅ ContactPickerModal: ${validContacts.length} valid contacts (with names)`);
 
@@ -78,7 +78,7 @@ export const ContactPickerModal: React.FC<ContactPickerModalProps> = ({
     contact.name?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleSelectContact = (contact: Contacts.Contact) => {
+  const handleSelectContact = (contact: Contacts.ExistingContact) => {
     console.log('👤 Contact selected:', contact.name);
 
     const phone = contact.phoneNumbers?.[0]?.number;
