@@ -1,9 +1,11 @@
 import type { Currency, Language } from '../types';
 
 const CURRENCY_SYMBOLS: Record<Currency, string> = {
-  EGP: 'ج.م',
+  EGP: 'E£',
   USD: '$',
   EUR: '€',
+  SAR: 'SR',
+  AED: 'AED',
 };
 
 const ARABIC_NUMERALS: Record<string, string> = {

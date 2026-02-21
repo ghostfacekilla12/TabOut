@@ -1,5 +1,5 @@
 {
-  "app_name": "TabOut",
+  "app_name": "Tab",
   "common": {
     "loading": "Loading...",
     "error": "Something went wrong",
@@ -53,7 +53,7 @@
     "guest_limit_reached": "Guest Limit Reached"
   },
   "home": {
-    "title": "TabOut",
+    "title": "Tab",
     "tagline": "Splits Made Quick",
     "balance_summary": "Balance Summary",
     "you_are_owed": "You are owed",
@@ -140,7 +140,9 @@
     "choose_from_gallery": "Choose from Gallery",
     "receipt_scanned": "Receipt Scanned!",
     "scan_receipt_error": "Failed to scan receipt. Please try again.",
-    "scanning": "Scanning..."
+    "scanning": "Scanning...",
+    "you": "You",
+    "select_payer": "Select who paid"
   },
   "friends": {
     "title": "Friends",

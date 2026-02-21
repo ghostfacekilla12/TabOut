@@ -1,17 +1,21 @@
-# 🔥 TabOut — اوعى تنسى
+# 🔥 Tab — اوعى تنسى
 
-**Never forget who paid what** | **اوعى تنسى مين دفع إيه**
+**The Cleanest Bill-Splitting App** | **اوعى تنسى مين دفع إيه**
 
-A complete bill-splitting mobile app built with React Native (Expo) and Supabase, designed with Egyptian Arabic street slang support.
+A complete bill-splitting mobile app built with React Native (Expo) and Supabase, designed with a minimalist Venmo-inspired design and Egyptian Arabic street slang support.
 
 ---
 
 ## 🚀 Features
 
+- **OCR Receipt Scanning**: Scan receipts with camera or gallery — items are automatically parsed into an itemized list with prices
+- **Itemized Splits**: Assign specific items to people, auto-calculate tax/service proportionally (default split type)
+- **Equal Splits**: Split total equally with configurable service/tax/delivery fee toggles
+- **Paid By Selector**: Track who paid for the order; automatically shows "You owe X to [Friend]"
+- **Debt Calculation**: After selecting your items and who paid, the app shows your exact share
 - **Multi-language support**: English, Egyptian Arabic (street slang), and Formal Arabic
-- **Proportional tax/service splitting**: Each person pays their fair share of tax/service based on their subtotal
-- **Itemized splits**: Assign specific items to people, auto-calculate tax/service proportionally
-- **Equal splits**: Split total equally with configurable service/tax/delivery fee toggles
+- **Multi-currency support**: USD ($), EUR (€), EGP (E£), SAR (SR), AED (AED) — defaults to EGP
+- **System-wide Dark Mode**: Toggle from the home screen header; persists across app sessions
 - **Friends management**: Add friends by email or phone, track balances
 - **Real-time updates**: Supabase realtime subscriptions for live split updates
 - **Payment tracking**: Mark payments as cash, Vodafone Cash, InstaPay, bank transfer

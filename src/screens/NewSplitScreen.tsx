@@ -50,7 +50,7 @@ export default function NewSplitScreen({ navigation, route }: Props) {
 
   const [description, setDescription] = useState('');
   const [totalAmount, setTotalAmount] = useState('');
-  const [splitType, setSplitType] = useState<'equal' | 'itemized'>('equal');
+  const [splitType, setSplitType] = useState<'equal' | 'itemized'>('itemized');
   const [hasService, setHasService] = useState(true);
   const [servicePercentage, setServicePercentage] = useState(12);
   const [hasTax, setHasTax] = useState(true);
@@ -59,6 +59,7 @@ export default function NewSplitScreen({ navigation, route }: Props) {
   const [deliveryFee, setDeliveryFee] = useState('');
   const [selectedFriends, setSelectedFriends] = useState<Friend[]>([]);
   const [paidBy, setPaidBy] = useState(user?.id ?? '');
+  const [paidByPickerVisible, setPaidByPickerVisible] = useState(false);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [friendsLoaded, setFriendsLoaded] = useState(false);
   const [friendPickerVisible, setFriendPickerVisible] = useState(false);
@@ -79,6 +80,18 @@ export default function NewSplitScreen({ navigation, route }: Props) {
     if (data.total > 0 && data.serviceCharge > 0) {
       setHasService(true);
       setServicePercentage(parseFloat(((data.serviceCharge / data.total) * 100).toFixed(1)));
+    }
+    // Populate itemized list from scanned receipt items
+    if (data.items && data.items.length > 0) {
+      setSplitType('itemized');
+      setItems(
+        data.items.map((item: { description: string; amount: number }, idx: number) => ({
+          id: `${Date.now()}_${idx}`,
+          name: item.description,
+          price: item.amount.toFixed(2),
+          ordered_by: user?.id ?? '',
+        }))
+      );
     }
   };
 
@@ -412,19 +425,23 @@ export default function NewSplitScreen({ navigation, route }: Props) {
           </View>
         </View>
 
+        {/* Scan receipt button - available for both split types */}
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={[styles.scanBtn, isScanning && styles.disabledBtn]}
+            onPress={handleScanReceipt}
+            disabled={isScanning}
+          >
+            <Ionicons name="camera" size={18} color={theme.colors.primary} />
+            <Text style={styles.scanBtnText}>
+              {isScanning ? t('split.scanning') : t('split.scan_receipt')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {splitType === 'equal' ? (
           <View style={styles.section}>
             <Text style={styles.label}>{t('split.total_amount')}</Text>
-            <TouchableOpacity
-              style={[styles.scanBtn, isScanning && styles.disabledBtn]}
-              onPress={handleScanReceipt}
-              disabled={isScanning}
-            >
-              <Ionicons name="camera" size={18} color={theme.colors.primary} />
-              <Text style={styles.scanBtnText}>
-                {isScanning ? t('split.scanning') : t('split.scan_receipt')}
-              </Text>
-            </TouchableOpacity>
             <TextInput
               style={styles.input}
               value={totalAmount}
@@ -526,6 +543,34 @@ export default function NewSplitScreen({ navigation, route }: Props) {
           </TouchableOpacity>
         </View>
 
+        <View style={styles.section}>
+          <Text style={styles.label}>{t('split.paid_by')}</Text>
+          <TouchableOpacity
+            style={styles.friendPickerBtn}
+            onPress={() => { loadFriends(); setPaidByPickerVisible(true); }}
+          >
+            <Text style={styles.friendPickerText}>
+              {paidBy === user?.id
+                ? t('split.you')
+                : friends.find((f: Friend) => f.id === paidBy)?.name ?? t('split.select_payer')}
+            </Text>
+            <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Debt summary: show when someone else paid */}
+        {paidBy !== user?.id && paidBy && total > 0 && (
+          <View style={styles.debtCard}>
+            <Ionicons name="information-circle" size={20} color={theme.colors.primary} />
+            <Text style={styles.debtText}>
+              {t('split.you_owe_person', {
+                name: friends.find((f) => f.id === paidBy)?.name ?? t('split.paid_by'),
+              })}{' '}
+              <Text style={styles.debtAmount}>{total.toFixed(2)}</Text>
+            </Text>
+          </View>
+        )}
+
         <TouchableOpacity
           style={[styles.createBtn, loading && styles.disabledBtn]}
           onPress={handleCreate}
@@ -537,6 +582,7 @@ export default function NewSplitScreen({ navigation, route }: Props) {
         </TouchableOpacity>
       </ScrollView>
 
+      {/* Split with friends modal */}
       <Modal visible={friendPickerVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -559,6 +605,38 @@ export default function NewSplitScreen({ navigation, route }: Props) {
               ListEmptyComponent={<Text style={styles.emptyText}>{t('friends.no_friends')}</Text>}
             />
             <TouchableOpacity style={styles.doneBtn} onPress={() => setFriendPickerVisible(false)}>
+              <Text style={styles.doneBtnText}>{t('common.done')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Paid by picker modal */}
+      <Modal visible={paidByPickerVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>{t('split.paid_by')}</Text>
+            <FlatList
+              data={[
+                { id: user?.id ?? '', name: t('split.you') ?? 'You' },
+                ...friends,
+              ]}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => {
+                const selected = paidBy === item.id;
+                return (
+                  <TouchableOpacity
+                    style={[styles.friendOption, selected && styles.friendOptionSelected]}
+                    onPress={() => { setPaidBy(item.id); setPaidByPickerVisible(false); }}
+                  >
+                    <Text style={styles.friendOptionText}>{item.name}</Text>
+                    {selected && <Ionicons name="checkmark" size={20} color={theme.colors.primary} />}
+                  </TouchableOpacity>
+                );
+              }}
+              ListEmptyComponent={<Text style={styles.emptyText}>{t('friends.no_friends')}</Text>}
+            />
+            <TouchableOpacity style={styles.doneBtn} onPress={() => setPaidByPickerVisible(false)}>
               <Text style={styles.doneBtnText}>{t('common.done')}</Text>
             </TouchableOpacity>
           </View>
@@ -645,7 +723,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: theme.colors.border,
   },
-  typeBtnActive: { borderColor: theme.colors.primary, backgroundColor: '#FFF9E6' },
+  typeBtnActive: { borderColor: theme.colors.primary, backgroundColor: '#EEF2FF' },
   typeBtnText: { fontSize: 14, color: theme.colors.textSecondary, fontWeight: '600' },
   typeBtnTextActive: { color: theme.colors.primary },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.xs },
@@ -723,7 +801,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },
-  friendOptionSelected: { backgroundColor: '#FFFBEA' },
+  friendOptionSelected: { backgroundColor: '#EEF2FF' },
   friendOptionText: { fontSize: 16, color: theme.colors.text },
   emptyText: { color: theme.colors.textSecondary, textAlign: 'center', padding: theme.spacing.md },
   doneBtn: {
@@ -785,5 +863,23 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: theme.colors.textSecondary,
     fontSize: 15,
+  },
+  debtCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    backgroundColor: '#EEF2FF',
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+  debtText: {
+    flex: 1,
+    fontSize: 15,
+    color: theme.colors.text,
+  },
+  debtAmount: {
+    fontWeight: '700',
+    color: theme.colors.accent,
   },
 });
