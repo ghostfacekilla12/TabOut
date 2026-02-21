@@ -1,5 +1,12 @@
 {
-  "app_name": "اوعى تنسى",
+  "app_name": "تاب",
+  "currencies": {
+    "EGP": "ج.م",
+    "SAR": "ر.س",
+    "AED": "د.إ",
+    "USD": "$",
+    "EUR": "€"
+  },
   "common": {
     "loading": "لحظة...",
     "error": "في حاجة غلط",
@@ -151,6 +158,10 @@
     "email_or_phone_placeholder": "اكتب الإيميل أو الموبايل",
     "friend_added": "الصاحب اتضاف!",
     "friend_add_error": "الصاحب مش اتضاف",
+    "import_contacts": "استورد من جهات الاتصال",
+    "add_by_email": "ضيف بالإيميل / الموبايل",
+    "contact_permission_denied": "مش مسموح بالوصول لجهات الاتصال",
+    "contact_imported": "جهة الاتصال اتضافت!",
     "pending_splits": "في الانتظار",
     "all_settled": "كلهم خلصوا!",
     "total_balance": "الرصيد الكلي"

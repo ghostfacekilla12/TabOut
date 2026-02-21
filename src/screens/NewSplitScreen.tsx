@@ -21,7 +21,8 @@ import { useAuth } from '../services/AuthContext';
 import { supabase } from '../services/supabase';
 import { canCreateGuestSplit, saveGuestSplit } from '../services/guestStorage';
 import type { GuestSplit } from '../services/guestStorage';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import type { Theme } from '../utils/theme';
 import { calculateEqualSplit, calculateSplit } from '../utils/splitCalculator';
 import { scanReceiptFromCamera, scanReceiptFromGallery } from '../services/ocrService';
 import { analyzeReceiptWithMindee } from '../services/mindeeOCR';
@@ -47,6 +48,7 @@ const PRESETS = {
 export default function NewSplitScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const { user, profile, isGuest, setGuestMode } = useAuth();
+  const { theme } = useTheme();
 
   const [description, setDescription] = useState('');
   const [totalAmount, setTotalAmount] = useState('');
@@ -67,6 +69,9 @@ export default function NewSplitScreen({ navigation, route }: Props) {
   const [loading, setLoading] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [activePreset, setActivePreset] = useState<keyof typeof PRESETS | null>(null);
+
+  const styles = createStyles(theme);
 
   const receiptData = route.params?.receiptData;
 
@@ -129,6 +134,7 @@ export default function NewSplitScreen({ navigation, route }: Props) {
     setTaxPercentage(p.taxPercentage);
     setHasDeliveryFee(p.hasDeliveryFee);
     setDeliveryFee(String(p.deliveryFee));
+    setActivePreset(preset);
   };
 
   const toggleFriend = (friend: Friend) => {
@@ -401,8 +407,14 @@ export default function NewSplitScreen({ navigation, route }: Props) {
           <Text style={styles.label}>{t('split.presets')}</Text>
           <View style={styles.row}>
             {(['restaurant', 'delivery', 'none'] as const).map((p) => (
-              <TouchableOpacity key={p} style={styles.presetBtn} onPress={() => applyPreset(p)}>
-                <Text style={styles.presetBtnText}>{t(`split.${p}`)}</Text>
+              <TouchableOpacity
+                key={p}
+                style={[styles.presetBtn, activePreset === p && styles.presetBtnActive]}
+                onPress={() => applyPreset(p)}
+              >
+                <Text style={[styles.presetBtnText, activePreset === p && styles.presetBtnTextActive]}>
+                  {t(`split.${p}`)}
+                </Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -678,7 +690,7 @@ export default function NewSplitScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   header: {
     backgroundColor: theme.colors.accent,
@@ -713,7 +725,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
+  presetBtnActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primary + '22',
+  },
   presetBtnText: { fontSize: 12, color: theme.colors.text, fontWeight: '500' },
+  presetBtnTextActive: { color: theme.colors.primary, fontWeight: '700' },
   typeBtn: {
     flex: 1,
     backgroundColor: theme.colors.surface,
@@ -723,7 +740,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: theme.colors.border,
   },
-  typeBtnActive: { borderColor: theme.colors.primary, backgroundColor: '#EEF2FF' },
+  typeBtnActive: { borderColor: theme.colors.primary, backgroundColor: theme.colors.primary + '22' },
   typeBtnText: { fontSize: 14, color: theme.colors.textSecondary, fontWeight: '600' },
   typeBtnTextActive: { color: theme.colors.primary },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.xs },
@@ -801,7 +818,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },
-  friendOptionSelected: { backgroundColor: '#EEF2FF' },
+  friendOptionSelected: { backgroundColor: theme.colors.primary + '22' },
   friendOptionText: { fontSize: 16, color: theme.colors.text },
   emptyText: { color: theme.colors.textSecondary, textAlign: 'center', padding: theme.spacing.md },
   doneBtn: {
@@ -868,7 +885,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.sm,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: theme.colors.primary + '22',
     borderRadius: theme.borderRadius.md,
     padding: theme.spacing.md,
     marginBottom: theme.spacing.md,

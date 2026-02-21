@@ -8,6 +8,14 @@ const CURRENCY_SYMBOLS: Record<Currency, string> = {
   AED: 'AED',
 };
 
+const ARABIC_CURRENCY_SYMBOLS: Record<Currency, string> = {
+  EGP: 'ج.م',
+  USD: '$',
+  EUR: '€',
+  SAR: 'ر.س',
+  AED: 'د.إ',
+};
+
 const ARABIC_NUMERALS: Record<string, string> = {
   '0': '٠',
   '1': '١',
@@ -29,9 +37,9 @@ export const formatCurrency = (
   currency: Currency = 'EGP',
   language: Language = 'en'
 ): string => {
-  const symbol = CURRENCY_SYMBOLS[currency];
-  const formatted = Math.abs(amount).toFixed(2);
   const isArabic = language === 'ar-EG' || language === 'ar';
+  const symbol = isArabic ? ARABIC_CURRENCY_SYMBOLS[currency] : CURRENCY_SYMBOLS[currency];
+  const formatted = Math.abs(amount).toFixed(2);
   const displayAmount = isArabic ? toArabicNumerals(formatted) : formatted;
 
   if (language === 'en') {
@@ -47,6 +55,13 @@ export const formatAmount = (amount: number, language: Language = 'en'): string 
   }
   return formatted;
 };
+
+export const getCurrencySymbol = (currency: Currency, language: Language = 'en'): string => {
+  const isArabic = language === 'ar-EG' || language === 'ar';
+  return isArabic ? ARABIC_CURRENCY_SYMBOLS[currency] : CURRENCY_SYMBOLS[currency];
+};
+
+export const AVAILABLE_CURRENCIES: Currency[] = ['EGP', 'USD', 'EUR', 'SAR', 'AED'];
 
 export const parseAmount = (value: string): number => {
   const arabicToEnglish = value.replace(/[٠-٩]/g, (d) => {

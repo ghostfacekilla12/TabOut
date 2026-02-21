@@ -1,5 +1,12 @@
 {
   "app_name": "Tab",
+  "currencies": {
+    "EGP": "E£",
+    "SAR": "SR",
+    "AED": "AED",
+    "USD": "$",
+    "EUR": "€"
+  },
   "common": {
     "loading": "Loading...",
     "error": "Something went wrong",
@@ -154,6 +161,10 @@
     "email_or_phone_placeholder": "Enter email or phone",
     "friend_added": "Friend added successfully",
     "friend_add_error": "Failed to add friend",
+    "import_contacts": "Import from Contacts",
+    "add_by_email": "Add by Email/Phone",
+    "contact_permission_denied": "Contacts permission was denied",
+    "contact_imported": "Contact added successfully",
     "pending_splits": "pending",
     "all_settled": "All settled up!",
     "total_balance": "Total Balance"

@@ -1,22 +1,128 @@
 const OCR_SPACE_API_KEY = 'K87153949488957';
 const OCR_SPACE_URL = 'https://api.ocr.space/parse/image';
 
+export interface ReceiptItem {
+  quantity: number;
+  name: string;
+  description: string;
+  price: number;
+}
+
 export interface ReceiptData {
   merchantName: string;
   total: number;
   taxAmount: number;
   serviceCharge: number;
   date: string;
+  subtotal: number;
+  discount: number;
+  deliveryFee: number;
+  serviceFee: number;
   items: Array<{
     description: string;
     amount: number;
   }>;
 }
 
+/**
+ * Parse Talabat/delivery-style receipts that have itemized lists.
+ * Pattern: "[qty] x [item name]  [currency] [price]"
+ */
+const parseDeliveryReceipt = (
+  lines: string[]
+): Pick<ReceiptData, 'items' | 'subtotal' | 'discount' | 'deliveryFee' | 'serviceFee' | 'total'> | null => {
+  // Look for lines matching: number x item   CURRENCY price
+  const itemRe = /^(\d+)\s*[xX×]\s+(.+?)\s+(?:EGP|SAR|AED|USD|EUR|\$|€)\s*([\d,]+\.?\d*)\s*$/i;
+  const amountRe = /(?:EGP|SAR|AED|USD|EUR|\$|€)\s*([\d,]+\.?\d*)/i;
+
+  const items: ReceiptData['items'] = [];
+  let subtotal = 0;
+  let discount = 0;
+  let deliveryFee = 0;
+  let serviceFee = 0;
+  let total = 0;
+  let hasItems = false;
+
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i].trim();
+    if (!line) { i++; continue; }
+
+    const itemMatch = line.match(itemRe);
+    if (itemMatch) {
+      hasItems = true;
+      const qty = parseInt(itemMatch[1], 10);
+      const name = itemMatch[2].trim();
+      const price = parseFloat(itemMatch[3].replace(',', ''));
+
+      // Look ahead for a description line (non-price, non-item line immediately after)
+      let description = '';
+      let j = i + 1;
+      while (j < lines.length) {
+        const nextLine = lines[j].trim();
+        if (!nextLine) { j++; continue; }
+        if (
+          itemRe.test(nextLine) ||
+          /\b(subtotal|total|discount|delivery|service)\b/i.test(nextLine) ||
+          amountRe.test(nextLine)
+        ) break;
+        description = nextLine;
+        j++;
+        break;
+      }
+      if (description) i = j - 1;
+
+      // Add as a single entry; include quantity in description if > 1
+      const itemDescription = qty > 1 ? `${name} (x${qty})` : name;
+      items.push({ description: itemDescription, amount: price });
+
+      i++;
+      continue;
+    }
+
+    // Check for subtotal/discount/delivery/service/total lines
+    const lower = line.toLowerCase();
+    const amountMatch = line.match(amountRe);
+    if (amountMatch) {
+      const amount = parseFloat(amountMatch[1].replace(',', ''));
+      if (/\bsubtotal\b/i.test(lower)) {
+        subtotal = amount;
+      } else if (/\bdiscount\b/i.test(lower)) {
+        discount = amount;
+      } else if (/delivery\s*fee/i.test(lower)) {
+        deliveryFee = amount;
+      } else if (/service\s*fee/i.test(lower)) {
+        serviceFee = amount;
+      } else if (/\btotal\b/i.test(lower) && !/subtotal/i.test(lower)) {
+        total = amount;
+      }
+    }
+
+    i++;
+  }
+
+  if (!hasItems) return null;
+
+  // Calculate subtotal from items if not found
+  if (subtotal === 0 && items.length > 0) {
+    subtotal = items.reduce((s, item) => s + item.amount, 0);
+  }
+
+  // Calculate total if not found
+  if (total === 0) {
+    total = subtotal - discount + deliveryFee + serviceFee;
+  }
+
+  return { items, subtotal, discount, deliveryFee, serviceFee, total };
+};
+
 const extractReceiptDataFromText = (text: string): ReceiptData => {
   console.log('📝 Full OCR text:', text);
 
   const lines = text.split('\n').filter((line) => line.trim());
+
+  // Try delivery/Talabat-style parsing first
+  const deliveryResult = parseDeliveryReceipt(lines);
 
   // Patterns
   const priceRe = /(?:^|[\s:x×*])\$?\s*(\d{1,6}(?:[,.]\d{1,3})*(?:\.\d{1,2})?)\s*(?:EGP|LE|L\.E\.|SAR|AED|USD|EUR|جنيه|ج\.م|﷼)?(?:\s|$)/i;
@@ -44,6 +150,23 @@ const extractReceiptDataFromText = (text: string): ReceiptData => {
   const serviceMatch = text.match(/(?:service|tip|gratuity)[:\s]*\$?\s*(\d+[,.]?\d*\.?\d{2})/i);
   const serviceCharge = serviceMatch ? parseFloat(serviceMatch[1].replace(',', '')) : 0;
 
+  // If delivery-style parsing succeeded, use that data
+  if (deliveryResult) {
+    return {
+      merchantName,
+      total: deliveryResult.total,
+      taxAmount,
+      serviceCharge: deliveryResult.serviceFee || serviceCharge,
+      date,
+      subtotal: deliveryResult.subtotal,
+      discount: deliveryResult.discount,
+      deliveryFee: deliveryResult.deliveryFee,
+      serviceFee: deliveryResult.serviceFee,
+      items: deliveryResult.items,
+    };
+  }
+
+  // Fallback: standard receipt parsing
   let total = 0;
   const items: Array<{ description: string; amount: number }> = [];
 
@@ -89,7 +212,18 @@ const extractReceiptDataFromText = (text: string): ReceiptData => {
     if (amounts.length > 0) total = Math.max(...amounts);
   }
 
-  return { merchantName, total, taxAmount, serviceCharge, date, items };
+  return {
+    merchantName,
+    total,
+    taxAmount,
+    serviceCharge,
+    date,
+    subtotal: total,
+    discount: 0,
+    deliveryFee: 0,
+    serviceFee: serviceCharge,
+    items,
+  };
 };
 
 export const analyzeReceiptWithOCRSpace = async (imageUri: string): Promise<ReceiptData> => {

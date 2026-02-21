@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import i18n, { supportedLanguages, saveLanguage } from '../services/i18n';
 
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import type { Theme } from '../utils/theme';
 import type { Language } from '../types';
 
 interface Props {
@@ -13,6 +14,8 @@ interface Props {
 
 export default function LanguageSwitcher({ currentLanguage, onLanguageChange }: Props) {
   const { t } = useTranslation();
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
 
   const handleChange = async (lang: Language) => {
     await i18n.changeLanguage(lang);
@@ -48,7 +51,7 @@ export default function LanguageSwitcher({ currentLanguage, onLanguageChange }: 
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.md,
@@ -76,7 +79,7 @@ const styles = StyleSheet.create({
   },
   langBtnActive: {
     borderColor: theme.colors.primary,
-    backgroundColor: '#FFF9E6',
+    backgroundColor: theme.colors.primary + '22',
   },
   langText: {
     fontSize: 13,

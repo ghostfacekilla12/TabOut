@@ -9,13 +9,14 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } fr
 
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { analyzeReceiptWithOCRSpace } from '../services/ocrSpaceAPI';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function ReceiptScannerScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { t } = useTranslation();
+  const { theme } = useTheme();
   const [permission, requestPermission] = useCameraPermissions();
   const [analyzing, setAnalyzing] = useState(false);
   const cameraRef = useRef<CameraView>(null);
@@ -32,7 +33,7 @@ export default function ReceiptScannerScreen() {
     return (
       <View style={styles.container}>
         <Text style={styles.message}>{t('scan.permission_required')}</Text>
-        <TouchableOpacity style={styles.button} onPress={requestPermission}>
+        <TouchableOpacity style={[styles.button, { backgroundColor: theme.colors.primary }]} onPress={requestPermission}>
           <Text style={styles.buttonText}>{t('scan.grant_permission')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -135,7 +136,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   button: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: '#3B82F6',
     padding: 16,
     borderRadius: 8,
     marginBottom: 16,

@@ -15,7 +15,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { useAuth } from '../services/AuthContext';
 import { supabase } from '../services/supabase';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import type { Theme } from '../utils/theme';
 import { formatCurrency } from '../utils/currencyFormatter';
 import SplitCard from '../components/SplitCard';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -30,6 +31,7 @@ interface SplitWithParticipant extends Split {
 export default function FriendDetailScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const { user, profile } = useAuth();
+  const { theme } = useTheme();
   const { friendId } = route.params;
 
   const [friendName, setFriendName] = useState('');
@@ -39,6 +41,7 @@ export default function FriendDetailScreen({ navigation, route }: Props) {
 
   const currency = (profile?.currency as 'EGP' | 'USD' | 'EUR') ?? 'EGP';
   const language = profile?.language ?? 'en';
+  const styles = createStyles(theme);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -150,9 +153,9 @@ export default function FriendDetailScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background },
   header: {
     backgroundColor: theme.colors.accent,
     flexDirection: 'row',

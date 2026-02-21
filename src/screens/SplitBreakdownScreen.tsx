@@ -17,7 +17,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { useAuth } from '../services/AuthContext';
 import { supabase } from '../services/supabase';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import type { Theme } from '../utils/theme';
 import { calculateSplit } from '../utils/splitCalculator';
 import { formatCurrency } from '../utils/currencyFormatter';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -37,6 +38,7 @@ interface ParticipantInfo {
 export default function SplitBreakdownScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const { user, profile } = useAuth();
+  const { theme } = useTheme();
   const { splitId } = route.params;
 
   const [splitData, setSplitData] = useState<{
@@ -55,6 +57,7 @@ export default function SplitBreakdownScreen({ navigation, route }: Props) {
 
   const currency = (profile?.currency as 'EGP' | 'USD' | 'EUR') ?? 'EGP';
   const language = profile?.language ?? 'en';
+  const styles = createStyles(theme);
 
   const fetchData = useCallback(async () => {
     try {
@@ -178,9 +181,9 @@ export default function SplitBreakdownScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background },
   header: {
     backgroundColor: theme.colors.accent,
     flexDirection: 'row',

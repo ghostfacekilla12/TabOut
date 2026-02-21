@@ -9,14 +9,17 @@ import {
   RefreshControl,
   Switch,
   TouchableOpacity,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '../services/AuthContext';
 import { supabase } from '../services/supabase';
-import { theme } from '../utils/theme';
 import { useTheme } from '../contexts/ThemeContext';
-import { formatCurrency } from '../utils/currencyFormatter';
+import type { Theme } from '../utils/theme';
+import { formatCurrency, getCurrencySymbol, AVAILABLE_CURRENCIES } from '../utils/currencyFormatter';
+import type { Currency } from '../types';
 import i18n, { saveLanguage } from '../services/i18n';
 
 interface MonthlyData {
@@ -24,15 +27,10 @@ interface MonthlyData {
   total: number;
 }
 
-interface LeaderboardEntry {
-  name: string;
-  value: string;
-}
-
 export default function StatsScreen() {
   const { t } = useTranslation();
-  const { user, profile } = useAuth();
-  const { isDark, toggleTheme, theme: contextTheme } = useTheme();
+  const { user, profile, updateProfile } = useAuth();
+  const { isDark, toggleTheme, theme } = useTheme();
 
   const [totalSpent, setTotalSpent] = useState(0);
   const [avgSplitSize, setAvgSplitSize] = useState(0);
@@ -40,9 +38,11 @@ export default function StatsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState(i18n.language);
+  const [currencyPickerVisible, setCurrencyPickerVisible] = useState(false);
 
-  const currency = (profile?.currency as 'EGP' | 'USD' | 'EUR') ?? 'EGP';
+  const currency = (profile?.currency as Currency) ?? 'EGP';
   const language = profile?.language ?? 'en';
+  const styles = createStyles(theme);
 
   const fetchStats = useCallback(async () => {
     if (!user) return;
@@ -104,6 +104,15 @@ export default function StatsScreen() {
     }
   };
 
+  const handleCurrencySelect = async (selected: Currency) => {
+    setCurrencyPickerVisible(false);
+    try {
+      await updateProfile({ currency: selected });
+    } catch (error) {
+      console.error('Failed to update currency:', error);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={theme.colors.accent} />
@@ -152,30 +161,21 @@ export default function StatsScreen() {
           </View>
         )}
 
-        <View
-          style={[
-            styles.settingsSection,
-            { backgroundColor: contextTheme.colors.surface },
-          ]}
-        >
-          <Text style={[styles.sectionTitle, { color: contextTheme.colors.text }]}>
-            {t('settings.title')}
-          </Text>
+        <View style={styles.settingsSection}>
+          <Text style={styles.sectionTitle}>{t('settings.title')}</Text>
+
           <View style={styles.settingRow}>
-            <Text style={[styles.settingLabel, { color: contextTheme.colors.text }]}>
-              {t('settings.dark_mode')}
-            </Text>
+            <Text style={styles.settingLabel}>{t('settings.dark_mode')}</Text>
             <Switch
               value={isDark}
               onValueChange={toggleTheme}
-              trackColor={{ false: '#D0D0D0', true: contextTheme.colors.primary }}
+              trackColor={{ false: '#D0D0D0', true: theme.colors.primary }}
               thumbColor="#FFFFFF"
             />
           </View>
+
           <View style={styles.settingRow}>
-            <Text style={[styles.settingLabel, { color: contextTheme.colors.text }]}>
-              {t('settings.language')}
-            </Text>
+            <Text style={styles.settingLabel}>{t('settings.language')}</Text>
             <View style={styles.languageToggle}>
               <TouchableOpacity
                 style={[
@@ -211,13 +211,64 @@ export default function StatsScreen() {
               </TouchableOpacity>
             </View>
           </View>
+
+          <TouchableOpacity
+            style={styles.settingRow}
+            onPress={() => setCurrencyPickerVisible(true)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.settingLabel}>{t('settings.currency')}</Text>
+            <View style={styles.currencySelector}>
+              <Text style={styles.currencySelectorText}>
+                {getCurrencySymbol(currency, language)} {currency}
+              </Text>
+              <Text style={styles.currencyChevron}>›</Text>
+            </View>
+          </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <Modal visible={currencyPickerVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>{t('settings.currency')}</Text>
+            <FlatList
+              data={AVAILABLE_CURRENCIES}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => {
+                const isSelected = item === currency;
+                return (
+                  <TouchableOpacity
+                    style={[styles.currencyOption, isSelected && styles.currencyOptionSelected]}
+                    onPress={() => handleCurrencySelect(item)}
+                  >
+                    <Text style={[styles.currencyOptionSymbol, isSelected && styles.currencyOptionTextSelected]}>
+                      {getCurrencySymbol(item, language)}
+                    </Text>
+                    <Text style={[styles.currencyOptionCode, isSelected && styles.currencyOptionTextSelected]}>
+                      {item}
+                    </Text>
+                    {isSelected && (
+                      <Text style={styles.currencyCheck}>✓</Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
+            />
+            <TouchableOpacity
+              style={styles.modalCloseBtn}
+              onPress={() => setCurrencyPickerVisible(false)}
+            >
+              <Text style={styles.modalCloseBtnText}>{t('common.cancel')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   header: {
     backgroundColor: theme.colors.accent,
@@ -282,7 +333,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: theme.spacing.xs,
+    paddingVertical: theme.spacing.sm,
   },
   settingLabel: {
     fontSize: 16,
@@ -311,5 +362,79 @@ const styles = StyleSheet.create({
   },
   languageButtonTextActive: {
     color: '#FFFFFF',
+  },
+  currencySelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  currencySelectorText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.primary,
+  },
+  currencyChevron: {
+    fontSize: 20,
+    color: theme.colors.textSecondary,
+  },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: {
+    backgroundColor: theme.colors.surface,
+    borderTopLeftRadius: theme.borderRadius.xl,
+    borderTopRightRadius: theme.borderRadius.xl,
+    padding: theme.spacing.lg,
+    maxHeight: '60%',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: theme.colors.text,
+    marginBottom: theme.spacing.md,
+    textAlign: 'center',
+  },
+  currencyOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.sm,
+    borderRadius: theme.borderRadius.md,
+    marginBottom: 4,
+    backgroundColor: theme.colors.background,
+  },
+  currencyOptionSelected: {
+    backgroundColor: theme.colors.primary + '22',
+  },
+  currencyOptionSymbol: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.colors.text,
+    width: 48,
+  },
+  currencyOptionCode: {
+    fontSize: 16,
+    color: theme.colors.text,
+    flex: 1,
+  },
+  currencyOptionTextSelected: {
+    color: theme.colors.primary,
+    fontWeight: '700',
+  },
+  currencyCheck: {
+    fontSize: 18,
+    color: theme.colors.primary,
+    fontWeight: '700',
+  },
+  modalCloseBtn: {
+    marginTop: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+    alignItems: 'center',
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  modalCloseBtnText: {
+    fontSize: 16,
+    color: theme.colors.textSecondary,
+    fontWeight: '600',
   },
 });

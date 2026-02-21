@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, View } from 'react-native';
 
 import { useAuth } from '../services/AuthContext';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 import LoginScreen from '../screens/auth/LoginScreen';
 import SignupScreen from '../screens/auth/SignupScreen';
@@ -55,6 +55,7 @@ const AuthNavigator = () => (
 
 const MainTabNavigator = () => {
   const { t } = useTranslation();
+  const { theme } = useTheme();
 
   return (
     <MainTab.Navigator
@@ -133,6 +134,7 @@ const MainNavigator = () => (
 
 export const AppNavigator = () => {
   const { session, loading, isGuest } = useAuth();
+  const { theme } = useTheme();
 
   if (loading) {
     return (
