@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { I18nManager } from 'react-native';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
-import type { Profile } from '../types';
+import i18n from './i18n';
+import type { Language, Profile } from '../types';
 
 interface AuthContextValue {
   session: Session | null;
@@ -20,6 +22,7 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: Error | null }>;
   refreshProfile: () => Promise<void>;
+  changeLanguage: (lang: Language) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -175,6 +178,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const changeLanguage = async (lang: Language) => {
+    await i18n.changeLanguage(lang);
+    const shouldBeRTL = lang === 'ar' || lang === 'ar-EG';
+    if (I18nManager.isRTL !== shouldBeRTL) {
+      I18nManager.forceRTL(shouldBeRTL);
+      // Note: App needs restart for RTL layout changes to take effect
+    }
+    if (user) {
+      await updateProfile({ language: lang });
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -189,6 +204,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signOut,
         updateProfile,
         refreshProfile,
+        changeLanguage,
       }}
     >
       {children}
