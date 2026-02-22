@@ -38,30 +38,66 @@ export default function CashDebtScreen({ navigation }: Props) {
   const [saving, setSaving] = useState(false);
   const [friendPickerVisible, setFriendPickerVisible] = useState(false);
 
-  const fetchFriends = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
+const fetchFriends = useCallback(async () => {
+  if (!user) return;
+
+  try {
+    console.log('🔄 [CashDebt] Fetching friends for user:', user.id);
+    
+    // ✅ GET FRIENDSHIPS FIRST
+    const { data: friendshipData, error: friendshipError } = await supabase
       .from('friendships')
-      .select(`profiles!friendships_friend_id_fkey(id, name, email, phone, avatar_url)`)
+      .select('friend_id')
       .eq('user_id', user.id);
 
-    if (data) {
-      setFriends(
-        data
-          .filter((d: any) => d.profiles)
-          .map((d: any) => ({
-            id: d.profiles.id,
-            name: d.profiles.name,
-            email: d.profiles.email,
-            phone: d.profiles.phone,
-            avatar_url: d.profiles.avatar_url,
-            balance: 0,
-            pending_splits_count: 0,
-          }))
-      );
+    if (friendshipError) {
+      console.error('❌ [CashDebt] Fetch friendships error:', friendshipError);
+      throw friendshipError;
     }
-  }, [user]);
 
+    console.log('✅ [CashDebt] Friendships:', friendshipData);
+
+    if (!friendshipData || friendshipData.length === 0) {
+      console.log('⚠️ [CashDebt] No friendships found');
+      setFriends([]);
+      return;
+    }
+
+    // ✅ GET FRIEND IDS
+    const friendIds = friendshipData.map(f => f.friend_id);
+    console.log('👥 [CashDebt] Friend IDs:', friendIds);
+
+    // ✅ FETCH PROFILES
+    const { data: profilesData, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, name, email, phone, avatar_url')
+      .in('id', friendIds);
+
+    if (profilesError) {
+      console.error('❌ [CashDebt] Fetch profiles error:', profilesError);
+      throw profilesError;
+    }
+
+    console.log('✅ [CashDebt] Profiles:', profilesData);
+
+    if (profilesData) {
+      const friendList = profilesData.map(p => ({
+        id: p.id,
+        name: p.name,
+        email: p.email,
+        phone: p.phone,
+        avatar_url: p.avatar_url,
+        balance: 0,
+        pending_splits_count: 0,
+      }));
+
+      console.log('👥 [CashDebt] Final friend list:', friendList);
+      setFriends(friendList);
+    }
+  } catch (error) {
+    console.error('❌ [CashDebt] Error fetching friends:', error);
+  }
+}, [user]);
   useEffect(() => {
     fetchFriends();
   }, [fetchFriends]);

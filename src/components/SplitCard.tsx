@@ -10,22 +10,40 @@ import { formatRelativeTime } from '../utils/dateFormatter';
 import type { Split, Language, Currency } from '../types';
 
 interface Props {
-  split: Split;
+  split: Split & { my_participant?: any };
   currentUserId: string;
   currency: Currency;
   language: Language;
   onPress: () => void;
+  onLongPress?: () => void;
 }
 
-export default function SplitCard({ split, currentUserId, currency, language, onPress }: Props) {
+export default function SplitCard({ split, currentUserId, currency, language, onPress, onLongPress }: Props) {
   const { t } = useTranslation();
   const { theme } = useTheme();
   const isPayer = split.paid_by === currentUserId;
-  const isSettled = split.settled;
+  const myParticipant = split.my_participant;
+  
+  // ✅ DETERMINE CARD STATUS
+  let cardStatus: 'paid' | 'pending' = 'pending';
+  
+  if (isPayer) {
+    // ✅ You paid - show "pending" until split is fully settled
+    cardStatus = split.settled ? 'paid' : 'pending';
+  } else {
+    // ✅ Someone else paid - show YOUR payment status
+    cardStatus = myParticipant?.status === 'paid' ? 'paid' : 'pending';
+  }
+  
   const styles = createStyles(theme);
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity 
+      style={styles.card} 
+      onPress={onPress} 
+      onLongPress={onLongPress}
+      activeOpacity={0.7}
+    >
       <View style={styles.iconContainer}>
         <Ionicons
           name="receipt-outline"
@@ -52,14 +70,29 @@ export default function SplitCard({ split, currentUserId, currency, language, on
       </View>
 
       <View style={styles.amountSection}>
+        {/* ✅ SHOW YOUR SHARE AMOUNT */}
         <Text style={[styles.amount, { color: isPayer ? theme.colors.success : theme.colors.warning }]}>
-          {isPayer ? '+' : '-'}{formatCurrency(split.total_amount, currency, language)}
+          {isPayer ? '+' : '-'}
+          {formatCurrency(
+            myParticipant?.total_amount || split.total_amount, 
+            currency, 
+            language
+          )}
         </Text>
-        <View style={[styles.statusBadge, { backgroundColor: isSettled ? theme.colors.success + '22' : theme.colors.warning + '22' }]}>
-          <Text style={[styles.statusText, { color: isSettled ? theme.colors.success : theme.colors.warning }]}>
-            {t(isSettled ? 'split.settled' : 'split.pending')}
+        
+        {/* ✅ SHOW CARD STATUS */}
+        <View style={[
+          styles.statusBadge, 
+          { backgroundColor: cardStatus === 'paid' ? theme.colors.success + '22' : theme.colors.warning + '22' }
+        ]}>
+          <Text style={[
+            styles.statusText, 
+            { color: cardStatus === 'paid' ? theme.colors.success : theme.colors.warning }
+          ]}>
+            {t(cardStatus === 'paid' ? 'split.paid' : 'split.pending')}
           </Text>
         </View>
+        
         <Ionicons name="chevron-forward" size={16} color={theme.colors.textSecondary} />
       </View>
     </TouchableOpacity>

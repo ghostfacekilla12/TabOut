@@ -26,7 +26,7 @@ import type { Split, SplitParticipant } from '../types';
 type Props = NativeStackScreenProps<RootStackParamList, 'SplitDetail'>;
 
 interface ParticipantWithProfile extends SplitParticipant {
-  profile?: { name: string; email?: string };
+  profiles?: { name: string; email?: string; avatar_url?: string };
 }
 
 export default function SplitDetailScreen({ navigation, route }: Props) {
@@ -45,16 +45,30 @@ export default function SplitDetailScreen({ navigation, route }: Props) {
 
   const fetchSplit = useCallback(async () => {
     try {
-      const [{ data: splitData }, { data: partData }] = await Promise.all([
+      console.log('🔍 [SplitDetail] Fetching split:', splitId);
+
+      const [{ data: splitData, error: splitError }, { data: partData, error: partError }] = await Promise.all([
         supabase.from('splits').select('*').eq('id', splitId).single(),
         supabase
           .from('split_participants')
-          .select('*, profiles(name, email)')
+          .select('*, profiles(name, email, avatar_url)')
           .eq('split_id', splitId),
       ]);
 
+      if (splitError) {
+        console.error('❌ [SplitDetail] Split error:', splitError);
+      }
+      if (partError) {
+        console.error('❌ [SplitDetail] Participants error:', partError);
+      }
+
+      console.log('✅ [SplitDetail] Split data:', splitData);
+      console.log('✅ [SplitDetail] Participants data:', partData);
+
       if (splitData) setSplit(splitData as Split);
       if (partData) setParticipants(partData as ParticipantWithProfile[]);
+    } catch (error) {
+      console.error('❌ [SplitDetail] Error:', error);
     } finally {
       setLoading(false);
     }
@@ -65,20 +79,46 @@ export default function SplitDetailScreen({ navigation, route }: Props) {
   }, [fetchSplit]);
 
   const handleMarkPaid = async (participantId: string) => {
-    Alert.alert(t('split.mark_as_paid'), t('common.confirm'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('common.yes'),
-        onPress: async () => {
-          await supabase
+  Alert.alert(t('split.mark_as_paid'), t('common.confirm'), [
+    { text: t('common.cancel'), style: 'cancel' },
+    {
+      text: t('common.yes'),
+      onPress: async () => {
+        try {
+          // ✅ GET THE PARTICIPANT'S TOTAL AMOUNT
+          const { data: participant } = await supabase
             .from('split_participants')
-            .update({ status: 'paid', paid_at: new Date().toISOString() })
+            .select('total_amount')
+            .eq('id', participantId)
+            .single();
+
+          if (!participant) {
+            Alert.alert(t('common.error'), 'Could not find participant');
+            return;
+          }
+
+          // ✅ UPDATE BOTH AMOUNT_PAID AND STATUS
+          const { error } = await supabase
+            .from('split_participants')
+            .update({ 
+              status: 'paid', 
+              amount_paid: participant.total_amount, // ✅ Mark full amount as paid
+              paid_at: new Date().toISOString() 
+            })
             .eq('id', participantId);
+
+          if (error) throw error;
+
+          Alert.alert(t('common.success'), 'Marked as paid');
           fetchSplit();
-        },
+        } catch (err) {
+          console.error('Error marking as paid:', err);
+          Alert.alert(t('common.error'), 'Could not mark as paid');
+        }
       },
-    ]);
-  };
+    },
+  ]);
+};
 
   const handleDelete = () => {
     Alert.alert(t('split.delete_split'), t('split.delete_confirm'), [
@@ -155,17 +195,19 @@ export default function SplitDetailScreen({ navigation, route }: Props) {
           {participants.map((p) => {
             const isMe = p.user_id === user?.id;
             const isPaid = p.status === 'paid';
+            const profileName = p.profiles?.name || 'Unknown';
+            
             return (
               <View key={p.id} style={styles.participantRow}>
                 <View style={styles.participantInfo}>
                   <View style={[styles.avatar, { backgroundColor: isPaid ? theme.colors.success : theme.colors.warning }]}>
                     <Text style={styles.avatarText}>
-                      {(p.profile?.name ?? 'U')[0].toUpperCase()}
+                      {profileName[0].toUpperCase()}
                     </Text>
                   </View>
                   <View>
                     <Text style={styles.participantName}>
-                      {isMe ? 'You' : (p.profile?.name ?? t('common.loading'))}
+                      {isMe ? 'You' : profileName}
                     </Text>
                     <Text style={styles.participantAmount}>
                       {formatCurrency(p.total_amount, currency, language)}

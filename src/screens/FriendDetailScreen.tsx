@@ -8,6 +8,7 @@ import {
   StatusBar,
   ActivityIndicator,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
@@ -37,64 +38,158 @@ export default function FriendDetailScreen({ navigation, route }: Props) {
   const [friendName, setFriendName] = useState('');
   const [balance, setBalance] = useState(0);
   const [splits, setSplits] = useState<SplitWithParticipant[]>([]);
+  const [cashDebts, setCashDebts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const currency = (profile?.currency as 'EGP' | 'USD' | 'EUR') ?? 'EGP';
   const language = profile?.language ?? 'en';
   const styles = createStyles(theme);
 
-  const fetchData = useCallback(async () => {
-    if (!user) return;
+const fetchData = useCallback(async () => {
+  if (!user) return;
 
-    try {
-      const { data: friendProfile } = await supabase
-        .from('profiles')
-        .select('name, email')
-        .eq('id', friendId)
-        .single();
+  try {
+    console.log('🔍 [FriendDetail] Fetching data for friend:', friendId);
 
-      if (friendProfile) setFriendName(friendProfile.name);
+    // ✅ FETCH FRIEND PROFILE
+    const { data: friendProfile } = await supabase
+      .from('profiles')
+      .select('name, email')
+      .eq('id', friendId)
+      .single();
 
-      const { data: participantData } = await supabase
-        .from('split_participants')
-        .select('*, splits(*)')
-        .eq('user_id', user.id)
-        .eq('status', 'pending');
+    if (friendProfile) setFriendName(friendProfile.name);
 
-      if (participantData) {
-        let net = 0;
-        const friendSplits: SplitWithParticipant[] = [];
+    // ✅ FETCH CASH DEBTS
+    const { data: cashDebts } = await supabase
+      .from('simple_debts')
+      .select('*')
+      .or(`and(from_user.eq.${user.id},to_user.eq.${friendId}),and(from_user.eq.${friendId},to_user.eq.${user.id})`)
+      .eq('status', 'pending');
 
-        for (const p of participantData) {
-          const split = p.splits as Split;
-          if (!split) continue;
+    // ✅ FETCH ALL SPLITS WHERE USER IS A PARTICIPANT
+    const { data: userSplitParticipants } = await supabase
+      .from('split_participants')
+      .select('split_id')
+      .eq('user_id', user.id);
 
-          const isWithFriend =
-            split.created_by === friendId ||
-            split.paid_by === friendId;
+    const userSplitIds = userSplitParticipants?.map(sp => sp.split_id) || [];
 
-          if (isWithFriend) {
-            const isPayer = split.paid_by === user.id;
-            if (isPayer) {
-              net += p.total_amount - p.amount_paid;
-            } else {
-              net -= p.total_amount - p.amount_paid;
-            }
-            friendSplits.push({ ...split, my_participant: p as SplitParticipant });
+    // ✅ FETCH ALL PARTICIPANTS FOR THOSE SPLITS
+    const { data: allSplitParticipants } = userSplitIds.length > 0
+      ? await supabase
+          .from('split_participants')
+          .select('*, splits(*)')
+          .in('split_id', userSplitIds)
+      : { data: null };
+
+    console.log('💰 [FriendDetail] Cash debts:', cashDebts);
+    console.log('📊 [FriendDetail] All split participants:', allSplitParticipants);
+
+    let net = 0;
+    const friendSplits: SplitWithParticipant[] = [];
+
+    // ✅ CALCULATE SPLIT BALANCES
+    if (allSplitParticipants) {
+      // Group by split_id
+      const splitMap = new Map();
+      for (const sp of allSplitParticipants) {
+        if (!splitMap.has(sp.split_id)) {
+          splitMap.set(sp.split_id, []);
+        }
+        splitMap.get(sp.split_id).push(sp);
+      }
+
+      // Calculate balance per split
+      for (const [splitId, participants] of splitMap) {
+        const userParticipant = participants.find((sp: any) => sp.user_id === user.id);
+        const friendParticipant = participants.find((sp: any) => sp.user_id === friendId);
+
+        if (userParticipant && friendParticipant && userParticipant.splits) {
+          const split = userParticipant.splits as Split;
+          const paidBy = split.paid_by;
+
+          if (paidBy === user.id) {
+            // You paid - they owe you
+            const unpaid = parseFloat(friendParticipant.total_amount.toString()) - parseFloat(friendParticipant.amount_paid.toString());
+            net += unpaid;
+          } else if (paidBy === friendId) {
+            // They paid - you owe them
+            const unpaid = parseFloat(userParticipant.total_amount.toString()) - parseFloat(userParticipant.amount_paid.toString());
+            net -= unpaid;
+          }
+
+          // Add to split list for display (show only if there's an unpaid amount)
+          const userUnpaid = parseFloat(userParticipant.total_amount.toString()) - parseFloat(userParticipant.amount_paid.toString());
+          const friendUnpaid = parseFloat(friendParticipant.total_amount.toString()) - parseFloat(friendParticipant.amount_paid.toString());
+          
+          if (userUnpaid > 0 || friendUnpaid > 0) {
+            friendSplits.push({ 
+              ...split, 
+              my_participant: userParticipant as SplitParticipant 
+            });
           }
         }
-
-        setBalance(net);
-        setSplits(friendSplits);
       }
-    } finally {
-      setLoading(false);
     }
-  }, [user, friendId]);
+
+    // ✅ CALCULATE CASH DEBT BALANCES
+    if (cashDebts) {
+      for (const debt of cashDebts) {
+        if (debt.from_user === user.id) {
+          net -= parseFloat(debt.amount);
+        } else {
+          net += parseFloat(debt.amount);
+        }
+      }
+    }
+
+    console.log('📊 [FriendDetail] Net balance:', net);
+    console.log('📊 [FriendDetail] Friend splits:', friendSplits);
+    console.log('📊 [FriendDetail] Cash debts count:', cashDebts?.length || 0);
+
+    setBalance(net);
+    setSplits(friendSplits);
+    setCashDebts(cashDebts || []);
+  } catch (error) {
+    console.error('❌ [FriendDetail] Error:', error);
+  } finally {
+    setLoading(false);
+  }
+}, [user, friendId]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const handleMarkAsPaid = async (debtId: string, description: string, amount: string, iOwe: boolean) => {
+    Alert.alert(
+      'Mark as Paid',
+      `${description}\n${formatCurrency(parseFloat(amount), currency, language)}\n\n${iOwe ? 'Did you pay this?' : 'Did they pay you?'}`,
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: 'Mark Paid',
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('simple_debts')
+                .update({ status: 'paid' })
+                .eq('id', debtId);
+
+              if (error) throw error;
+
+              Alert.alert(t('common.success'), 'Transaction marked as paid');
+              fetchData(); // Refresh
+            } catch (err) {
+              console.error('Error marking as paid:', err);
+              Alert.alert(t('common.error'), 'Could not mark as paid');
+            }
+          }
+        }
+      ]
+    );
+  };
 
   if (loading) {
     return (
@@ -118,33 +213,82 @@ export default function FriendDetailScreen({ navigation, route }: Props) {
       </View>
 
       <FlatList
-        data={splits}
+        data={[
+          ...cashDebts.map(debt => ({ ...debt, type: 'cash_debt' })),
+          ...splits.map(split => ({ ...split, type: 'split' }))
+        ]}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={
           <View>
-            <View style={[styles.balanceCard, { backgroundColor: isPositive ? theme.colors.success : theme.colors.warning }]}>
+            <View style={[styles.balanceCard, { backgroundColor: balance === 0 ? theme.colors.success : (isPositive ? theme.colors.success : theme.colors.error) }]}>
               <Text style={styles.balanceLabel}>
-                {isPositive ? t('split.owes_you') : t('split.you_owe')}
+                {balance === 0
+                  ? t('debt.settled_up')
+                  : isPositive
+                    ? t('split.owes_you')
+                    : t('split.you_owe')
+                }
               </Text>
               <Text style={styles.balanceAmount}>
                 {formatCurrency(Math.abs(balance), currency, language)}
               </Text>
             </View>
-            <Text style={styles.sectionTitle}>{t('friend_detail.splits')}</Text>
+            <Text style={styles.sectionTitle}>Transaction History</Text>
           </View>
         }
-        renderItem={({ item }) => (
-          <SplitCard
-            split={item}
-            currentUserId={user?.id ?? ''}
-            currency={currency}
-            language={language}
-            onPress={() => navigation.navigate('SplitDetail', { splitId: item.id })}
-          />
-        )}
+        renderItem={({ item }) => {
+         if (item.type === 'cash_debt') {
+  // ✅ RENDER CASH DEBT
+  const iOwe = item.from_user === user?.id;
+  const debtColor = iOwe ? '#ef4444' : '#22c55e'; // Red for owe, Green for owes you
+  
+  return (
+    <TouchableOpacity 
+      style={[styles.transactionCard, { backgroundColor: theme.colors.card }]}
+      onPress={() => handleMarkAsPaid(item.id, item.description || 'Cash transaction', item.amount, iOwe)}
+    >
+      <View style={styles.transactionHeader}>
+        <Ionicons 
+          name="cash-outline" 
+          size={24} 
+          color={debtColor} 
+        />
+        <View style={styles.transactionInfo}>
+          <Text style={[styles.transactionTitle, { color: theme.colors.text }]}>
+            {item.description || 'Cash transaction'}
+          </Text>
+          <Text style={[styles.transactionDate, { color: theme.colors.textSecondary }]}>
+            {new Date(item.created_at).toLocaleDateString()}
+          </Text>
+        </View>
+        <View style={styles.transactionAmount}>
+          <Text style={[styles.amountText, { color: debtColor, fontWeight: '700' }]}>
+            {iOwe ? 'You owe' : 'Owes you'}
+          </Text>
+          <Text style={[styles.amountValue, { color: debtColor }]}>
+            {formatCurrency(parseFloat(item.amount), currency, language)}
+          </Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+          } else {
+            // ✅ RENDER SPLIT
+            return (
+              <SplitCard
+                split={item}
+                currentUserId={user?.id ?? ''}
+                currency={currency}
+                language={language}
+                onPress={() => navigation.navigate('SplitDetail', { splitId: item.id })}
+              />
+            );
+          }
+        }}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>{t('friend_detail.no_splits')}</Text>
+            <Ionicons name="receipt-outline" size={48} color={theme.colors.border} />
+            <Text style={styles.emptyText}>No transactions with this friend</Text>
           </View>
         }
         contentContainerStyle={styles.listContent}
@@ -176,5 +320,41 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   sectionTitle: { fontSize: 18, fontWeight: '700', color: theme.colors.text, paddingHorizontal: theme.spacing.lg, marginBottom: theme.spacing.sm },
   listContent: { paddingBottom: theme.spacing.xl },
   emptyContainer: { alignItems: 'center', padding: theme.spacing.xl },
-  emptyText: { color: theme.colors.textSecondary, fontSize: 16 },
+  emptyText: { color: theme.colors.textSecondary, fontSize: 16, marginTop: theme.spacing.sm },
+  transactionCard: {
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    ...theme.shadows.sm,
+  },
+  transactionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  transactionInfo: {
+    flex: 1,
+  },
+  transactionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  transactionDate: {
+    fontSize: 12,
+  },
+  transactionAmount: {
+    alignItems: 'flex-end',
+  },
+  amountText: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 2,
+    textTransform: 'uppercase',
+  },
+  amountValue: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
 });

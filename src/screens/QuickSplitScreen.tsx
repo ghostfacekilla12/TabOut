@@ -44,33 +44,64 @@ export default function QuickSplitScreen({ navigation }: Props) {
   const [saving, setSaving] = useState(false);
   const [payerPickerVisible, setPayerPickerVisible] = useState(false);
 
-  const fetchFriends = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
+const fetchFriends = useCallback(async () => {
+  if (!user) return;
+
+  try {
+    console.log('🔄 [QuickSplit] Fetching friends for user:', user.id);
+    
+    // ✅ GET FRIENDSHIPS FIRST
+    const { data: friendshipData, error: friendshipError } = await supabase
       .from('friendships')
-      .select(`profiles!friendships_friend_id_fkey(id, name, email, phone, avatar_url)`)
+      .select('friend_id')
       .eq('user_id', user.id);
 
-    if (data) {
-      const friendList: Friend[] = data
-        .filter((d: any) => d.profiles)
-        .map((d: any) => ({
-          id: d.profiles.id,
-          name: d.profiles.name,
-          email: d.profiles.email,
-          phone: d.profiles.phone,
-          avatar_url: d.profiles.avatar_url,
-          balance: 0,
-          pending_splits_count: 0,
-        }));
-      setFriends(friendList);
-      setParticipants([
-        { friend: 'me', selected: true },
-        ...friendList.map((f) => ({ friend: f, selected: false })),
-      ]);
+    if (friendshipError) {
+      console.error('❌ [QuickSplit] Fetch friendships error:', friendshipError);
+      throw friendshipError;
     }
-  }, [user]);
 
+    console.log('✅ [QuickSplit] Friendships:', friendshipData);
+
+    if (!friendshipData || friendshipData.length === 0) {
+      console.log('⚠️ [QuickSplit] No friendships found');
+      setAvailableFriends([]);
+      return;
+    }
+
+    // ✅ GET FRIEND IDS
+    const friendIds = friendshipData.map(f => f.friend_id);
+    console.log('👥 [QuickSplit] Friend IDs:', friendIds);
+
+    // ✅ FETCH PROFILES
+    const { data: profilesData, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, name, email, phone, avatar_url')
+      .in('id', friendIds);
+
+    if (profilesError) {
+      console.error('❌ [QuickSplit] Fetch profiles error:', profilesError);
+      throw profilesError;
+    }
+
+    console.log('✅ [QuickSplit] Profiles:', profilesData);
+
+    if (profilesData) {
+      const friendList = profilesData.map(p => ({
+        id: p.id,
+        name: p.name,
+        email: p.email,
+        phone: p.phone,
+        avatar_url: p.avatar_url,
+      }));
+
+      console.log('👥 [QuickSplit] Final friend list:', friendList);
+      setAvailableFriends(friendList);
+    }
+  } catch (error) {
+    console.error('❌ [QuickSplit] Error fetching friends:', error);
+  }
+}, [user]);
   useEffect(() => {
     fetchFriends();
   }, [fetchFriends]);

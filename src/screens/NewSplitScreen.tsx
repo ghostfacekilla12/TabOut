@@ -116,25 +116,69 @@ export default function NewSplitScreen({ navigation, route }: Props) {
     }
   }, [receiptData]);
 
-  const loadFriends = async () => {
-    if (friendsLoaded || !user) return;
-    const { data } = await supabase
+const loadFriends = async () => {
+  if (friendsLoaded || !user) return;
+
+  try {
+    console.log('🔄 [NewSplit] Fetching friends for user:', user.id);
+    
+    // ✅ GET FRIENDSHIPS FIRST
+    const { data: friendshipData, error: friendshipError } = await supabase
       .from('friendships')
-      .select('profiles!friendships_friend_id_fkey(id, name, email)')
+      .select('friend_id')
       .eq('user_id', user.id);
 
-    if (data) {
-      setFriends(
-        data
-          .filter((d) => d.profiles)
-          .map((d) => {
-            const p = d.profiles as { id: string; name: string; email?: string };
-            return { id: p.id, name: p.name, email: p.email, balance: 0, pending_splits_count: 0 };
-          })
-      );
+    if (friendshipError) {
+      console.error('❌ [NewSplit] Fetch friendships error:', friendshipError);
+      throw friendshipError;
     }
+
+    console.log('✅ [NewSplit] Friendships:', friendshipData);
+
+    if (!friendshipData || friendshipData.length === 0) {
+      console.log('⚠️ [NewSplit] No friendships found');
+      setFriends([]);
+      setFriendsLoaded(true);
+      return;
+    }
+
+    // ✅ GET FRIEND IDS
+    const friendIds = friendshipData.map(f => f.friend_id);
+    console.log('👥 [NewSplit] Friend IDs:', friendIds);
+
+    // ✅ FETCH PROFILES
+    const { data: profilesData, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, name, email, phone, avatar_url')
+      .in('id', friendIds);
+
+    if (profilesError) {
+      console.error('❌ [NewSplit] Fetch profiles error:', profilesError);
+      throw profilesError;
+    }
+
+    console.log('✅ [NewSplit] Profiles:', profilesData);
+
+    if (profilesData) {
+      const friendList = profilesData.map(p => ({
+        id: p.id,
+        name: p.name,
+        email: p.email,
+        phone: p.phone,
+        avatar_url: p.avatar_url,
+        balance: 0,
+        pending_splits_count: 0,
+      }));
+
+      console.log('👥 [NewSplit] Final friend list:', friendList);
+      setFriends(friendList);
+    }
+  } catch (error) {
+    console.error('❌ [NewSplit] Error fetching friends:', error);
+  } finally {
     setFriendsLoaded(true);
-  };
+  }
+};
 
   const applyPreset = (preset: keyof typeof PRESETS) => {
     const p = PRESETS[preset];
@@ -433,18 +477,17 @@ export default function NewSplitScreen({ navigation, route }: Props) {
 
       if (splitError || !splitData) throw splitError;
 
-      const participantInserts = result.participants.map((p) => ({
-        split_id: splitData.id,
-        user_id: p.user_id,
-        item_subtotal: p.item_subtotal,
-        service_share: p.service_share,
-        tax_share: p.tax_share,
-        delivery_share: p.delivery_share,
-        total_amount: p.total_amount,
-        amount_paid: p.user_id === paidBy ? p.total_amount : 0,
-        status: p.user_id === paidBy ? 'paid' : 'pending',
-      }));
-
+   const participantInserts = result.participants.map((p) => ({
+  split_id: splitData.id,
+  user_id: p.user_id,
+  item_subtotal: p.item_subtotal,
+  service_share: p.service_share,
+  tax_share: p.tax_share,
+  delivery_share: p.delivery_share,
+  total_amount: p.total_amount,
+  amount_paid: p.user_id === paidBy ? p.total_amount : 0, // ✅ Payer has paid their share
+  status: p.user_id === paidBy ? 'paid' : 'pending', // ✅ Payer is settled, others are pending
+}));
       await supabase.from('split_participants').insert(participantInserts);
 
       if (splitType === 'itemized' && items.length > 0) {
@@ -459,9 +502,10 @@ export default function NewSplitScreen({ navigation, route }: Props) {
 
       Alert.alert(t('common.ok'), t('split.split_created'));
       navigation.goBack();
-    } catch {
-      Alert.alert(t('common.error'), t('split.split_create_error'));
-    } finally {
+  } catch (error) {
+  console.error('❌ [NewSplit] Create split error:', error);
+  Alert.alert(t('common.error'), t('split.split_create_error'));
+} finally {
       setLoading(false);
     }
   };

@@ -65,22 +65,47 @@ export default function SignupScreen({ navigation }: Props) {
     return true;
   };
 
-  const handleSignup = async () => {
-    if (!validate()) return;
+const handleSignup = async () => {
+  if (!validate()) return;
 
-    setLoading(true);
-    const { error } = await signUpWithEmail(
-      email.trim() || undefined,
-      password,
-      name.trim(),
+  setLoading(true);
+  
+  try {
+    console.log('📝 Starting signup with:', { 
+      name: name.trim(), 
+      email: email.trim() || 'none', 
+      phone: phone.trim() || 'none' 
+    });
+    
+    const result = await signUpWithEmail(
+      email.trim() || undefined, 
+      password, 
+      name.trim(), 
       phone.trim() || undefined
     );
-    setLoading(false);
-
-    if (error) {
-      Alert.alert(t('common.error'), t('auth.signup_error'));
+    
+    console.log('📝 Signup result:', result);
+    
+    if (result?.error) {
+      console.error('❌ Signup error:', result.error);
+      Alert.alert(
+        t('common.error'), 
+        result.error.message || 'Signup failed. Please try again.'
+      );
+    } else {
+      console.log('✅ Signup successful!');
+      // Success - AuthContext will handle navigation
     }
-  };
+  } catch (error: any) {
+    console.error('❌ Signup exception:', error);
+    Alert.alert(
+      t('common.error'), 
+      error.message || 'Something went wrong. Please try again.'
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <KeyboardAvoidingView

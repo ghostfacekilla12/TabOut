@@ -44,41 +44,136 @@ export default function FriendsScreen({ navigation }: Props) {
 
   const styles = createStyles(theme);
 
-  const fetchFriends = useCallback(async () => {
-    if (!user) return;
+const fetchFriends = useCallback(async () => {
+  if (!user) {
+    console.log('⚠️ No user - cannot fetch friends');
+    return;
+  }
 
-    try {
-      const { data } = await supabase
-        .from('friendships')
-        .select(`
-          friend_id,
-          profiles!friendships_friend_id_fkey(id, name, email, phone, avatar_url)
-        `)
-        .eq('user_id', user.id);
+  try {
+    console.log('🔄 [Friends] Fetching friends for user:', user.id);
+    
+    const { data: friendshipData, error: friendshipError } = await supabase
+      .from('friendships')
+      .select('friend_id')
+      .eq('user_id', user.id);
 
-      if (data) {
-        const friendList: Friend[] = data
-          .filter((d) => d.profiles)
-          .map((d) => {
-            const p = d.profiles as unknown as { id: string; name: string; email?: string; phone?: string; avatar_url?: string };
-            return {
-              id: p.id,
-              name: p.name,
-              email: p.email,
-              phone: p.phone,
-              avatar_url: p.avatar_url,
-              balance: 0,
-              pending_splits_count: 0,
-            };
-          });
-        setFriends(friendList);
-      }
-    } finally {
+    if (friendshipError) {
+      console.error('❌ Fetch friendships error:', friendshipError);
+      throw friendshipError;
+    }
+
+    console.log('✅ Friendships data:', friendshipData);
+
+    if (!friendshipData || friendshipData.length === 0) {
+      console.log('⚠️ No friendships found');
+      setFriends([]);
       setLoading(false);
       setRefreshing(false);
+      return;
     }
-  }, [user]);
 
+    const friendIds = friendshipData.map(f => f.friend_id);
+    console.log('👥 Friend IDs:', friendIds);
+
+    const { data: profilesData, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, name, email, phone, avatar_url')
+      .in('id', friendIds);
+
+    if (profilesError) {
+      console.error('❌ Fetch profiles error:', profilesError);
+      throw profilesError;
+    }
+
+    console.log('✅ Profiles data:', profilesData);
+
+    if (profilesData) {
+      // ✅ FETCH CASH DEBTS
+      const { data: cashDebts } = await supabase
+        .from('simple_debts')
+        .select('from_user, to_user, amount')
+        .or(`from_user.eq.${user.id},to_user.eq.${user.id}`)
+        .eq('status', 'pending');
+
+      // ✅ FETCH ALL SPLIT PARTICIPANTS
+      const { data: allSplitParticipants } = await supabase
+        .from('split_participants')
+        .select('split_id, user_id, total_amount, amount_paid, splits(paid_by)');
+
+      console.log('💰 [Friends] Cash debts:', cashDebts);
+      console.log('📊 [Friends] All split participants:', allSplitParticipants);
+
+      // ✅ CALCULATE BALANCE FOR EACH FRIEND
+      const friendList = profilesData.map(p => {
+        let balance = 0;
+
+        // ✅ ADD CASH DEBTS
+        if (cashDebts) {
+          for (const debt of cashDebts) {
+            if (debt.from_user === user.id && debt.to_user === p.id) {
+              balance -= parseFloat(debt.amount);
+            } else if (debt.to_user === user.id && debt.from_user === p.id) {
+              balance += parseFloat(debt.amount);
+            }
+          }
+        }
+
+        // ✅ ADD SPLIT DEBTS
+        if (allSplitParticipants) {
+          // Group by split_id
+          const splitMap = new Map();
+          for (const sp of allSplitParticipants) {
+            if (!splitMap.has(sp.split_id)) {
+              splitMap.set(sp.split_id, []);
+            }
+            splitMap.get(sp.split_id).push(sp);
+          }
+
+          // Calculate balance per split
+          for (const [splitId, participants] of splitMap) {
+            const userParticipant = participants.find(sp => sp.user_id === user.id);
+            const friendParticipant = participants.find(sp => sp.user_id === p.id);
+
+            if (userParticipant && friendParticipant && userParticipant.splits) {
+              const paidBy = userParticipant.splits.paid_by;
+
+              if (paidBy === user.id) {
+                // You paid - they owe you their unpaid amount
+                const unpaid = friendParticipant.total_amount - friendParticipant.amount_paid;
+                balance += unpaid;
+              } else if (paidBy === p.id) {
+                // They paid - you owe them your unpaid amount
+                const unpaid = userParticipant.total_amount - userParticipant.amount_paid;
+                balance -= unpaid;
+              }
+            }
+          }
+        }
+
+        console.log(`👤 [Friends] ${p.name} balance:`, balance);
+
+        return {
+          id: p.id,
+          name: p.name,
+          email: p.email,
+          phone: p.phone,
+          avatar_url: p.avatar_url,
+          balance: balance,
+          pending_splits_count: 0,
+        };
+      });
+
+      console.log('👥 Final friend list:', friendList);
+      setFriends(friendList);
+    }
+  } catch (error) {
+    console.error('❌ Error fetching friends:', error);
+  } finally {
+    setLoading(false);
+    setRefreshing(false);
+  }
+}, [user]);
   useEffect(() => {
     fetchFriends();
   }, [fetchFriends]);
@@ -176,51 +271,73 @@ export default function FriendsScreen({ navigation }: Props) {
     if (!user) return;
 
     try {
-      // ✅ NORMALIZE PHONE NUMBER - REMOVE SPACES, DASHES, PARENTHESES
+      // ✅ NORMALIZE PHONE - REMOVE ALL NON-DIGITS
       let normalizedPhone = '';
+      
       if (phone) {
-        normalizedPhone = phone.replace(/[\s\-\(\)]/g, '');
+        normalizedPhone = phone.replace(/\D/g, '');
         console.log('📱 Normalized phone:', normalizedPhone);
       }
 
-      // ✅ SEARCH BY PHONE NUMBER OR EMAIL
-      let query;
+      // ✅ BUILD SEARCH QUERY
+      let profileData = null;
       
-      if (email && phone) {
-        // Try both email AND phone
-        const last10 = normalizedPhone.slice(-10);
-        query = `email.eq.${email},phone.eq.${normalizedPhone},phone.like.%${last10}`;
-      } else if (email) {
-        query = `email.eq.${email}`;
-      } else if (phone) {
-        // ✅ SEARCH PHONE WITH PARTIAL MATCHING
-        // Try: exact match, last 10 digits
-        const last10 = normalizedPhone.slice(-10);
-        query = `phone.eq.${normalizedPhone},phone.like.%${last10}`;
+      // Try email first if available
+      if (email) {
+        console.log('🔍 Searching by email:', email);
+        const { data } = await supabase
+          .from('profiles')
+          .select('id, name, email, phone')
+          .eq('email', email)
+          .maybeSingle();
+        
+        if (data) {
+          profileData = data;
+          console.log('✅ Found by email');
+        }
       }
-
-      console.log('🔍 Searching with query:', query);
-
-      const { data: profileData, error: searchError } = await supabase
-        .from('profiles')
-        .select('id, name, email, phone')
-        .or(query!)
-        .maybeSingle();
-
-      if (searchError) {
-        console.error('❌ Search error:', searchError);
-        throw searchError;
+      
+      // If not found by email, try phone
+      if (!profileData && normalizedPhone) {
+        const phoneVariants = [
+          normalizedPhone,
+          `+2${normalizedPhone}`,
+          `20${normalizedPhone}`,
+        ];
+        
+        if (normalizedPhone.startsWith('0')) {
+          phoneVariants.push(normalizedPhone.slice(1));
+          phoneVariants.push(`+2${normalizedPhone.slice(1)}`);
+          phoneVariants.push(`20${normalizedPhone.slice(1)}`);
+        }
+        
+        console.log('🔍 Searching by phone variants:', phoneVariants);
+        
+        for (const variant of phoneVariants) {
+          const { data } = await supabase
+            .from('profiles')
+            .select('id, name, email, phone')
+            .eq('phone', variant)
+            .maybeSingle();
+          
+          if (data) {
+            profileData = data;
+            console.log('✅ Found by phone variant:', variant);
+            break;
+          }
+        }
       }
 
       if (!profileData) {
         console.log('⚠️ Contact not on Tab');
         
-        // ✅ BETTER MESSAGE - SHOW WHAT WE SEARCHED FOR
-        const searchedWith = email ? `Email: ${email}` : `Phone: ${phone}`;
+        const searchedWith = email 
+          ? `Email: ${email}` 
+          : `Phone: ${phone}`;
         
         Alert.alert(
           '❌ Not on Tab',
-          `${name} is not on Tab yet.\n\nSearched with:\n${searchedWith}\n\nAsk them to sign up with this ${email ? 'email' : 'phone number'}!`,
+          `${name} is not on Tab yet.\n\nSearched with:\n${searchedWith}\n\nAsk them to sign up!`,
           [
             { text: 'Try Another Contact', onPress: () => {} },
             { text: 'Cancel', onPress: () => setContactPickerVisible(false), style: 'cancel' }
@@ -266,7 +383,7 @@ export default function FriendsScreen({ navigation }: Props) {
         `${profileData.name} added as friend!`,
         [{ text: 'OK', onPress: () => {
           setContactPickerVisible(false);
-          fetchFriends(); // Refresh friends list
+          fetchFriends();
         }}]
       );
 
@@ -279,6 +396,55 @@ export default function FriendsScreen({ navigation }: Props) {
       );
     }
   };
+
+  // ✅ REMOVE FRIEND FUNCTION
+  const removeFriend = async (friendId: string, friendName: string) => {
+    Alert.alert(
+      t('friends.remove_friend') || 'Remove Friend',
+      t('friends.remove_friend_confirm') || `Remove ${friendName} from your friends?`,
+      [
+        { text: t('common.cancel') || 'Cancel', style: 'cancel' },
+        {
+          text: t('common.remove') || 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              console.log('🗑️ Removing friend:', friendId);
+
+              // ✅ DELETE BOTH FRIENDSHIP RECORDS
+              const { error } = await supabase
+                .from('friendships')
+                .delete()
+                .or(`and(user_id.eq.${user?.id},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${user?.id})`);
+
+              if (error) {
+                console.error('❌ Remove friend error:', error);
+                throw error;
+              }
+
+              console.log('✅ Friend removed successfully');
+
+              // ✅ UPDATE LOCAL STATE
+              setFriends(prev => prev.filter(f => f.id !== friendId));
+
+              Alert.alert(
+                t('common.success') || 'Success', 
+                t('friends.friend_removed') || 'Friend removed successfully'
+              );
+            } catch (error) {
+              console.error('❌ Error removing friend:', error);
+              Alert.alert(
+                t('common.error') || 'Error', 
+                t('friends.remove_friend_error') || 'Could not remove friend'
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
+
 
   const filtered = friends.filter(
     (f) =>
@@ -313,12 +479,13 @@ export default function FriendsScreen({ navigation }: Props) {
         data={filtered}
         keyExtractor={(item) => item.id}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchFriends(); }} tintColor={theme.colors.primary} />}
-        renderItem={({ item }) => (
-          <FriendCard
-            friend={item}
-            onPress={() => navigation.navigate('FriendDetail', { friendId: item.id })}
-          />
-        )}
+      renderItem={({ item }) => (
+  <FriendCard
+    friend={item}
+    onPress={() => navigation.navigate('FriendDetail', { friendId: item.id })}
+    onLongPress={() => removeFriend(item.id, item.name)}
+  />
+)}
         ListEmptyComponent={
           !loading ? (
             <View style={styles.emptyContainer}>
@@ -501,4 +668,20 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   confirmBtnText: { color: '#FFFFFF', fontWeight: '700' },
   disabledBtn: { opacity: 0.6 },
+  // ✅ NEW STYLES FOR SWIPE DELETE
+  deleteAction: {
+    backgroundColor: '#FF3B30',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+    borderRadius: theme.borderRadius.md,
+    marginVertical: theme.spacing.xs,
+    marginRight: theme.spacing.md,
+  },
+  deleteText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
+  },
 });

@@ -41,44 +41,115 @@ export default function HomeScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchSplits = useCallback(async () => {
-    if (!user) return;
+ const fetchSplits = useCallback(async () => {
+  if (!user) return;
 
-    try {
-      const { data: participantData } = await supabase
+  try {
+    // ✅ FETCH UNSETTLED SPLITS
+    const { data: participantData } = await supabase
+      .from('split_participants')
+      .select('*, splits!inner(*)')
+      .eq('user_id', user.id)
+      .eq('splits.settled', false)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    // ✅ FETCH CASH DEBTS
+    const { data: cashDebts } = await supabase
+      .from('simple_debts')
+      .select('*')
+      .or(`from_user.eq.${user.id},to_user.eq.${user.id}`)
+      .eq('status', 'pending');
+
+    console.log('💰 [Home] Cash debts:', cashDebts);
+    console.log('📊 [Home] Participant data:', participantData);
+
+    let owed = 0;
+    let owe = 0;
+
+    // ✅ CALCULATE SPLIT BALANCES - NEED TO FETCH OTHER PARTICIPANTS
+    const splitList: SplitWithParticipant[] = [];
+
+    if (participantData && participantData.length > 0) {
+      // Get all split IDs
+      const splitIds = participantData.map(p => p.split_id);
+
+      // Fetch ALL participants for those splits
+      const { data: allParticipants } = await supabase
         .from('split_participants')
-        .select('*, splits(*)')
-        .eq('user_id', user.id)
-        .eq('status', 'pending')
-        .order('split_id', { ascending: false })
-        .limit(20);
+        .select('*')
+        .in('split_id', splitIds);
 
-      if (participantData) {
-        let owed = 0;
-        let owe = 0;
+      console.log('👥 [Home] All participants:', allParticipants);
 
-        const splitList: SplitWithParticipant[] = participantData
-          .filter((p) => p.splits)
-          .map((p) => {
-            const split = p.splits as Split;
-            const isPayee = split.paid_by === user.id;
-            if (isPayee) {
-              owed += p.total_amount - p.amount_paid;
-            } else {
-              owe += p.total_amount - p.amount_paid;
-            }
-            return { ...split, my_participant: p as SplitParticipant };
+      // Group by split
+      const splitMap = new Map();
+      for (const p of participantData) {
+        if (p.splits) {
+          splitMap.set(p.split_id, {
+            split: p.splits as Split,
+            myParticipant: p as SplitParticipant,
+            allParticipants: allParticipants?.filter(ap => ap.split_id === p.split_id) || []
           });
-
-        setSplits(splitList);
-        setTotalOwed(owed);
-        setTotalOwe(owe);
+        }
       }
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+
+      // Calculate balances
+      for (const [splitId, data] of splitMap) {
+        const { split, myParticipant, allParticipants: participants } = data;
+        const isPayer = split.paid_by === user.id;
+
+        if (isPayer) {
+          // ✅ YOU PAID - Calculate how much OTHERS owe you
+          const othersUnpaid = participants
+            .filter((p: any) => p.user_id !== user.id)
+            .reduce((sum: number, p: any) => {
+              const unpaid = parseFloat(p.total_amount) - parseFloat(p.amount_paid);
+              return sum + unpaid;
+            }, 0);
+
+          owed += othersUnpaid;
+
+          // ✅ ONLY SHOW IN HISTORY IF OTHERS STILL OWE YOU
+          if (othersUnpaid > 0) {
+            splitList.push({ ...split, my_participant: myParticipant });
+          }
+        } else {
+          // ✅ SOMEONE ELSE PAID - Calculate how much YOU owe
+          const yourUnpaid = parseFloat(myParticipant.total_amount) - parseFloat(myParticipant.amount_paid);
+          owe += yourUnpaid;
+
+          // ✅ ONLY SHOW IN HISTORY IF YOU STILL OWE
+          if (yourUnpaid > 0) {
+            splitList.push({ ...split, my_participant: myParticipant });
+          }
+        }
+      }
     }
-  }, [user]);
+
+    // ✅ CALCULATE CASH DEBT BALANCES
+    if (cashDebts) {
+      for (const debt of cashDebts) {
+        if (debt.from_user === user.id) {
+          owe += parseFloat(debt.amount);
+        } else {
+          owed += parseFloat(debt.amount);
+        }
+      }
+    }
+
+    console.log('📊 [Home] Total owed to you:', owed);
+    console.log('📊 [Home] Total you owe:', owe);
+    console.log('📊 [Home] Splits to show:', splitList);
+
+    setSplits(splitList);
+    setTotalOwed(owed);
+    setTotalOwe(owe);
+  } finally {
+    setLoading(false);
+    setRefreshing(false);
+  }
+}, [user]);
 
   useEffect(() => {
     fetchSplits();

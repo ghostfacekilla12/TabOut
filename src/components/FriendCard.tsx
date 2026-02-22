@@ -10,26 +10,32 @@ import type { Friend } from '../types';
 interface Props {
   friend: Friend;
   onPress: () => void;
+  onLongPress?: () => void;
 }
 
-export default function FriendCard({ friend, onPress }: Props) {
+export default function FriendCard({ friend, onPress, onLongPress }: Props) {
   const { t } = useTranslation();
   const { theme } = useTheme();
-  const isPositive = friend.balance >= 0;
+  const isPositive = friend.balance > 0;
   const hasBalance = friend.balance !== 0;
   const styles = createStyles(theme);
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
-      <View style={[styles.avatar, { backgroundColor: isPositive ? theme.colors.success : theme.colors.warning }]}>
+    <TouchableOpacity 
+      style={styles.card} 
+      onPress={onPress} 
+      onLongPress={onLongPress}
+      activeOpacity={0.7}
+    >
+      <View style={[styles.avatar, { backgroundColor: hasBalance ? (isPositive ? theme.colors.success : theme.colors.warning) : theme.colors.textSecondary }]}>
         <Text style={styles.avatarText}>{friend.name[0].toUpperCase()}</Text>
       </View>
 
       <View style={styles.info}>
         <Text style={styles.name}>{friend.name}</Text>
-        {friend.pending_splits_count > 0 ? (
-          <Text style={styles.pending}>
-            {friend.pending_splits_count} {t('friends.pending_splits')}
+        {hasBalance ? (
+          <Text style={[styles.balanceText, { color: isPositive ? theme.colors.success : theme.colors.warning }]}>
+            {isPositive ? t('split.owes_you') : t('split.you_owe')} {Math.abs(friend.balance).toFixed(2)} EGP
           </Text>
         ) : (
           <Text style={styles.settled}>{t('friends.all_settled')}</Text>
@@ -37,17 +43,7 @@ export default function FriendCard({ friend, onPress }: Props) {
       </View>
 
       <View style={styles.balanceSection}>
-        {hasBalance && (
-          <>
-            <Text style={[styles.balance, { color: isPositive ? theme.colors.success : theme.colors.warning }]}>
-              {isPositive ? '+' : '-'}{Math.abs(friend.balance).toFixed(2)}
-            </Text>
-            <Text style={styles.balanceLabel}>
-              {isPositive ? t('split.owes_you') : t('split.you_owe')}
-            </Text>
-          </>
-        )}
-        <Ionicons name="chevron-forward" size={16} color={theme.colors.textSecondary} />
+        <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
       </View>
     </TouchableOpacity>
   );
@@ -75,9 +71,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   avatarText: { color: '#FFFFFF', fontWeight: '700', fontSize: 18 },
   info: { flex: 1, marginRight: theme.spacing.sm },
   name: { fontSize: 16, fontWeight: '600', color: theme.colors.text },
-  pending: { fontSize: 12, color: theme.colors.warning, marginTop: 2 },
+  balanceText: { fontSize: 13, fontWeight: '600', marginTop: 2 },
   settled: { fontSize: 12, color: theme.colors.success, marginTop: 2 },
-  balanceSection: { alignItems: 'flex-end', gap: 2 },
-  balance: { fontSize: 15, fontWeight: '700' },
-  balanceLabel: { fontSize: 11, color: theme.colors.textSecondary },
+  balanceSection: { alignItems: 'flex-end' },
 });

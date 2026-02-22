@@ -16,28 +16,77 @@ import type { Theme } from '../utils/theme';
 
 export default function SettingsScreen() {
   const { t } = useTranslation();
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, isGuest, signOut, setGuestMode } = useAuth(); // ✅ ADD isGuest and setGuestMode
   const { theme } = useTheme();
 
   const styles = createStyles(theme);
 
   const handleLogout = () => {
+    // ✅ DIFFERENT MESSAGE FOR GUEST VS REGULAR USER
+    const title = isGuest ? 'Exit Guest Mode' : t('auth.logout');
+    const message = isGuest 
+      ? 'Are you sure you want to exit guest mode?' 
+      : t('auth.logout_confirmation');
+    const confirmText = isGuest ? 'Exit' : t('auth.logout');
+
     Alert.alert(
-      t('auth.logout'),
-      t('auth.logout_confirmation'),
+      title,
+      message,
       [
         { text: t('common.cancel'), style: 'cancel' },
         {
-          text: t('auth.logout'),
+          text: confirmText,
           style: 'destructive',
           onPress: async () => {
-            await signOut();
+            try {
+              if (isGuest) {
+                // ✅ EXIT GUEST MODE
+                console.log('👋 Exiting guest mode');
+                setGuestMode(false);
+              } else {
+                // ✅ REGULAR LOGOUT
+                console.log('👋 Logging out');
+                await signOut();
+              }
+            } catch (error) {
+              console.error('Logout error:', error);
+              Alert.alert('Error', 'Could not logout. Please try again.');
+            }
           },
         },
       ]
     );
   };
 
+  // ✅ GUEST MODE - SHOW DIFFERENT INFO
+  if (isGuest) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>{t('settings.title')}</Text>
+        </View>
+
+        <View style={styles.userCard}>
+          <Ionicons name="person-outline" size={64} color={theme.colors.textSecondary} />
+          <Text style={styles.userName}>Guest Mode</Text>
+          <Text style={styles.userInfo}>
+            <Ionicons name="information-circle-outline" size={14} color={theme.colors.textSecondary} />
+            {' '}Limited features available
+          </Text>
+          <Text style={[styles.userInfo, { marginTop: theme.spacing.sm, textAlign: 'center' }]}>
+            Sign up to save your data and access all features!
+          </Text>
+        </View>
+
+        <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
+          <Ionicons name="log-out-outline" size={22} color="#FFFFFF" style={styles.logoutIcon} />
+          <Text style={styles.logoutText}>Exit Guest Mode</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
+  // ✅ REGULAR USER - SHOW PROFILE INFO
   const displayEmail = profile?.email || (user?.email?.endsWith('@tabout.app') ? undefined : user?.email);
   const displayPhone = profile?.phone;
   const displayName = profile?.name || user?.user_metadata?.name;

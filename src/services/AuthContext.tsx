@@ -77,25 +77,76 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error };
   };
 
-  const signUpWithEmail = async (email: string | undefined, password: string, name: string, phone?: string | undefined) => {
-    if (!email && !phone) {
-      return { error: new Error('Either email or phone is required') };
-    }
-    const authEmail = email || `${(phone || '').replace(/\D/g, '')}@tabout.app`;
-    const { data, error } = await supabase.auth.signUp({ email: authEmail, password });
-    if (!error && data.user) {
-      await supabase.from('profiles').insert({
+  const signUpWithEmail = async (
+    email: string | undefined, 
+    password: string, 
+    name: string, 
+    phone?: string | undefined
+  ) => {
+    try {
+      console.log('📝 AuthContext signup:', { email, name, phone });
+
+      // Validate at least one contact method
+      if (!email && !phone) {
+        return { error: new Error('Either email or phone is required') };
+      }
+
+      // ✅ NORMALIZE PHONE IF PROVIDED - REMOVE ALL NON-DIGITS
+      let normalizedPhone = '';
+      if (phone) {
+        normalizedPhone = phone.replace(/\D/g, '');
+        console.log('📱 Normalized phone:', normalizedPhone);
+      }
+
+      // ✅ DETERMINE AUTH EMAIL
+      // If user provides email, use it
+      // If only phone, create placeholder email
+      const authEmail = email || `${normalizedPhone}@tabout.app`;
+      console.log('📧 Auth email:', authEmail);
+
+      // ✅ SIGN UP WITH SUPABASE
+      const { data, error: authError } = await supabase.auth.signUp({ 
+        email: authEmail, 
+        password 
+      });
+
+      if (authError) {
+        console.error('❌ Auth signup error:', authError);
+        return { error: authError };
+      }
+
+      if (!data.user) {
+        const err = new Error('No user returned from signup');
+        console.error('❌', err.message);
+        return { error: err };
+      }
+
+      console.log('✅ User created:', data.user.id);
+
+      // ✅ CREATE PROFILE WITH NORMALIZED PHONE
+      const { error: profileError } = await supabase.from('profiles').insert({
         id: data.user.id,
-        email: email || null,
-        phone: phone || null,
+        email: email || null,              // Save actual email (or null)
+        phone: normalizedPhone || null,    // ✅ SAVE NORMALIZED PHONE
         name,
         language: 'en',
         currency: 'EGP',
         default_service_percentage: 12,
         default_tax_percentage: 14,
       });
+
+      if (profileError) {
+        console.error('❌ Profile creation error:', profileError);
+        return { error: profileError };
+      }
+
+      console.log('✅ Profile created successfully with phone:', normalizedPhone);
+
+      return { error: null };
+    } catch (error: any) {
+      console.error('❌ Signup exception:', error);
+      return { error };
     }
-    return { error };
   };
 
   const signOut = async () => {
