@@ -1,19 +1,19 @@
 import type { Currency, Language } from '../types';
 
 const CURRENCY_SYMBOLS: Record<Currency, string> = {
-  EGP: 'E£',
-  USD: '$',
-  EUR: '€',
-  SAR: 'SR',
+  EGP: 'EGP',
+  USD: 'USD',
+  EUR: 'EUR',
+  SAR: 'SAR',
   AED: 'AED',
 };
 
 const ARABIC_CURRENCY_SYMBOLS: Record<Currency, string> = {
-  EGP: 'ج.م',
-  USD: '$',
-  EUR: '€',
-  SAR: 'ر.س',
-  AED: 'د.إ',
+  EGP: 'جنيه',
+  USD: 'دولار',
+  EUR: 'يورو',
+  SAR: 'ريال',
+  AED: 'درهم',
 };
 
 const ARABIC_NUMERALS: Record<string, string> = {
@@ -37,13 +37,31 @@ export const formatCurrency = (
   currency: Currency = 'EGP',
   language: Language = 'en'
 ): string => {
-  const isArabic = language === 'ar-EG' || language === 'ar';
+  // ✅ DEBUG - ADD THIS
+  console.log('💰 [formatCurrency] Input:', { amount, currency, language });
+  
+  // ✅ FIX: Check language properly
+  const isArabic = language === 'ar' || language === 'ar-EG';
+  
+  console.log('💰 [formatCurrency] isArabic:', isArabic);
+  
+  // ✅ Pick correct symbol based on language
   const symbol = isArabic ? ARABIC_CURRENCY_SYMBOLS[currency] : CURRENCY_SYMBOLS[currency];
+  
+  console.log('💰 [formatCurrency] symbol:', symbol);
+  
+  // ✅ Format amount
   const formatted = Math.abs(amount).toFixed(2);
+  
+  // ✅ Convert to Arabic numerals if Arabic
   const displayAmount = isArabic ? toArabicNumerals(formatted) : formatted;
 
-  if (language === 'en') {
-    return `${symbol} ${displayAmount}`;
+  console.log('💰 [formatCurrency] displayAmount:', displayAmount);
+  console.log('💰 [formatCurrency] Final output:', isArabic ? `${displayAmount} ${symbol}` : `${displayAmount} ${symbol}`);
+
+  // ✅ Format: English = "100.00 EGP" | Arabic = "١٠٠٫٠٠ جنيه"
+  if (isArabic) {
+    return `${displayAmount} ${symbol}`;
   }
   return `${displayAmount} ${symbol}`;
 };

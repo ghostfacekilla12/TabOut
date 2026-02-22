@@ -69,32 +69,43 @@ export default function SplitCard({ split, currentUserId, currency, language, on
         </View>
       </View>
 
-      <View style={styles.amountSection}>
-        {/* ✅ SHOW YOUR SHARE AMOUNT */}
-        <Text style={[styles.amount, { color: isPayer ? theme.colors.success : theme.colors.warning }]}>
-          {isPayer ? '+' : '-'}
-          {formatCurrency(
-            myParticipant?.total_amount || split.total_amount, 
-            currency, 
-            language
-          )}
-        </Text>
-        
-        {/* ✅ SHOW CARD STATUS */}
-        <View style={[
-          styles.statusBadge, 
-          { backgroundColor: cardStatus === 'paid' ? theme.colors.success + '22' : theme.colors.warning + '22' }
-        ]}>
-          <Text style={[
-            styles.statusText, 
-            { color: cardStatus === 'paid' ? theme.colors.success : theme.colors.warning }
-          ]}>
-            {t(cardStatus === 'paid' ? 'split.paid' : 'split.pending')}
-          </Text>
-        </View>
-        
-        <Ionicons name="chevron-forward" size={16} color={theme.colors.textSecondary} />
-      </View>
+    <View style={styles.amountSection}>
+  {/* ✅ SHOW CORRECT AMOUNT */}
+  {isPayer ? (
+    // ✅ YOU PAID - Show how much OTHERS owe you (NOT your share!)
+    <Text style={[styles.amount, { color: theme.colors.success }]}>
+      +{formatCurrency(
+        split.total_amount - (myParticipant?.total_amount || 0), // Total MINUS your share = what others owe
+        currency, 
+        language
+      )}
+    </Text>
+  ) : (
+    // ✅ SOMEONE ELSE PAID - Show what YOU owe
+    <Text style={[styles.amount, { color: theme.colors.warning }]}>
+      -{formatCurrency(
+        (myParticipant?.total_amount || 0) - (myParticipant?.amount_paid || 0), // Your unpaid amount
+        currency, 
+        language
+      )}
+    </Text>
+  )}
+  
+  {/* ✅ SHOW CARD STATUS */}
+  <View style={[
+    styles.statusBadge, 
+    { backgroundColor: cardStatus === 'paid' ? theme.colors.success + '22' : theme.colors.warning + '22' }
+  ]}>
+    <Text style={[
+      styles.statusText, 
+      { color: cardStatus === 'paid' ? theme.colors.success : theme.colors.warning }
+    ]}>
+      {t(cardStatus === 'paid' ? 'split.paid' : 'split.pending')}
+    </Text>
+  </View>
+  
+  <Ionicons name="chevron-forward" size={16} color={theme.colors.textSecondary} />
+</View>
     </TouchableOpacity>
   );
 }
